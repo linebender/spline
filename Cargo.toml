@@ -1,0 +1,14 @@
+[package]
+name = "spline"
+version = "0.3.0"
+license = "MIT/Apache-2.0"
+authors = ["Raph Levien <raph.levien@gmail.com>"]
+edition = "2018"
+keywords = ["graphics", "curve", "curves", "bezier", "spline"]
+repository = "https://github.com/linebender/spline"
+description = "A spline for interactive 2D curve design"
+readme = "README.md"
+categories = ["graphics"]
+
+[dependencies]
+kurbo = "0.7"
