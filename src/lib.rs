@@ -12,4 +12,4 @@
 
 mod hyperbezier;
 
-pub use hyperbezier::HyperBezier;
+pub use hyperbezier::{HyperBezier, ThetaParams};
