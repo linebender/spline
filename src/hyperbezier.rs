@@ -3,6 +3,8 @@
 use kurbo::common as coeffs;
 use kurbo::{Affine, BezPath, CubicBez, ParamCurveArclen, Point, Vec2};
 
+use crate::util;
+
 /// Parameters for a hyperbezier curve.
 ///
 /// A hyperbezier is a curve defined by curvature as a function of arclength.
@@ -55,6 +57,7 @@ pub struct ThetaParams {
 /// The `th0` and `th1` values are defined so that if they are have the
 /// same sign, the curve is convex, but if they are opposite signs, it is
 /// an "s" shape.
+#[derive(Copy, Clone)]
 pub struct HyperBezierResult {
     /// Tangent angle from the chord to the curve at the start point.
     pub th0: f64,
@@ -86,7 +89,13 @@ impl HyperBezier {
         let th1 = self.compute_theta(1.0) - th_chord;
         let k0 = chord * self.k0 * compute_k(self.bias0);
         let k1 = chord * self.k1 * compute_k(self.bias1);
-        HyperBezierResult { th0, th1, chord, k0, k1 }
+        HyperBezierResult {
+            th0,
+            th1,
+            chord,
+            k0,
+            k1,
+        }
     }
 
     fn integrate(&self, t0: f64, t1: f64, order: usize) -> Vec2 {
@@ -140,7 +149,12 @@ impl HyperBezier {
 
     /// Solve for curve params, given theta params.
     pub fn solve_for_theta(params: &ThetaParams) -> HyperBezier {
-        let ThetaParams { th0, bias0, th1, bias1 } = *params;
+        let ThetaParams {
+            th0,
+            bias0,
+            th1,
+            bias1,
+        } = *params;
         let mut dth = 0.0;
         let mut lastxy: Option<(f64, f64)> = None;
         const N: usize = 10;
@@ -155,7 +169,7 @@ impl HyperBezier {
                 return params;
             }
             let result = params.compute();
-            let th_err = mod_tau(th0 - th1 - (result.th0 - result.th1));
+            let th_err = util::mod_tau(th0 - th1 - (result.th0 - result.th1));
             if th_err.abs() < 1e-3 {
                 return params;
             }
@@ -194,7 +208,12 @@ impl HyperBezier {
         let chord = 1.0 / c.arclen(1e-3);
         let bias0 = inv_arm_len(v1.hypot(), chord);
         let bias1 = inv_arm_len(v2.hypot(), chord);
-        let theta_params = ThetaParams { th0, bias0, th1, bias1 };
+        let theta_params = ThetaParams {
+            th0,
+            bias0,
+            th1,
+            bias1,
+        };
         Self::solve_for_theta(&theta_params)
     }
 }
@@ -221,7 +240,6 @@ fn integrate_basis(bias: f64, s: f64) -> f64 {
     }
 }
 
-
 /// Compute curvature at endpoint.
 fn compute_k(bias: f64) -> f64 {
     if bias <= 1.0 {
@@ -229,13 +247,7 @@ fn compute_k(bias: f64) -> f64 {
     } else {
         let a = (bias - 1.0).min(MAX_A);
         // Reciprocal of integral
-        let sr =  (a * a) / (1.0 / (1.0 - a) + (1.0 - a).ln() - 1.0);
+        let sr = (a * a) / (1.0 / (1.0 - a) + (1.0 - a).ln() - 1.0);
         sr / (1.0 - a).powi(2)
     }
-}
-
-/// Normalize an angle to the range -PI..PI.
-fn mod_tau(x: f64) -> f64 {
-    // Do this in terms of euclidean remainder instead?
-    x - std::f64::consts::TAU * (x * (1.0 / std::f64::consts::TAU)).round()
 }

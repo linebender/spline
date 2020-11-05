@@ -12,3 +12,6 @@ categories = ["graphics"]
 
 [dependencies]
 kurbo = "0.7"
+
+[dev-dependencies]
+rand = "0.7"
