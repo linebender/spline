@@ -191,30 +191,47 @@ impl HyperBezier {
     /// The points are given relative to p0 at (0, 0) and p3 at
     /// (1, 0).
     pub fn solve(p1: Point, p2: Point) -> HyperBezier {
-        fn inv_arm_len(h: f64, th: f64) -> f64 {
-            // This formula ensures that bezier parameters approximating
-            // a circular arc map to a bias of 1.0.
-            let a = h * 1.5 * (th.cos() + 1.0);
-            if a < 1.0 {
-                2.0 - a.powf(2.0)
-            } else {
-                1.0 + 2.0 * (0.5 * (1.0 - a)).tanh()
-            }
-        }
-        let v1 = p1.to_vec2();
-        let v2 = Point::new(1.0, 0.0) - p2;
+        let (th0, bias0) = Self::params_for_v(p1.to_vec2());
+        let (th1, bias1) = Self::params_for_v(Point::new(1.0, 0.0) - p2);
         // TODO: signs feel reversed here, but it all works out in the end.
-        let th0 = -v1.atan2();
-        let th1 = v2.atan2();
-        let bias0 = inv_arm_len(v1.hypot(), th0);
-        let bias1 = inv_arm_len(v2.hypot(), th1);
         let theta_params = ThetaParams {
-            th0,
+            th0: -th0,
             bias0,
             th1,
             bias1,
         };
         Self::solve_for_theta(&theta_params)
+    }
+
+    /// Determine params for a control arm.
+    ///
+    /// Return values are theta and bias.
+    pub(crate) fn params_for_v(v: Vec2) -> (f64, f64) {
+        let th = v.atan2();
+        // This formula ensures that bezier parameters approximating
+        // a circular arc map to a bias of 1.0.
+        let a = v.hypot() * 1.5 * (th.cos() + 1.0);
+        let bias = if a < 1.0 {
+            2.0 - a * a
+        } else {
+            1.0 + 2.0 * (0.5 * (1.0 - a)).tanh()
+        };
+        (th, bias)
+    }
+
+    /// Determine control arm position from params.
+    ///
+    /// This function should be the inverse of `params_for_v`
+    pub(crate) fn v_for_params(th: f64, bias: f64) -> Vec2 {
+        let a = if bias >= 1.0 {
+            (2.0 - bias).sqrt()
+        } else {
+            // Bias may not be bounded from below, we probably want
+            // to rethink this...
+            1.0 - 2.0 * (0.5 * (bias - 1.0)).atanh()
+        };
+        let len = a / (1.5 * (th.cos() + 1.0));
+        len * Vec2::from_angle(th)
     }
 }
 

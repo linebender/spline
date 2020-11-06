@@ -148,7 +148,7 @@ impl SimpleSpline {
     }
 }
 
-fn bias_for_theta(th: f64) -> f64 {
+pub(crate) fn bias_for_theta(th: f64) -> f64 {
     // Tangent angles up to this limit will be Euler spirals.
     const EULER_LIMIT: f64 = 0.3 * PI;
     let th = th.abs();
@@ -161,7 +161,7 @@ fn bias_for_theta(th: f64) -> f64 {
 }
 
 /// The tangent of an endpoint given the other tangent.
-fn endpoint_tangent(th: f64) -> f64 {
+pub(crate) fn endpoint_tangent(th: f64) -> f64 {
     0.5 * (2.0 * th).sin()
 }
 

@@ -12,7 +12,9 @@
 
 mod hyperbezier;
 mod simple_spline;
+mod spline;
 mod util;
 
 pub use hyperbezier::{HyperBezier, ThetaParams};
 pub use simple_spline::SimpleSpline;
+pub use spline::{Segment, Spline, SplineSpec};
