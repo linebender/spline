@@ -1,7 +1,7 @@
 //! The math for the hyperbezier curve family.
 
 use kurbo::common as coeffs;
-use kurbo::{Affine, BezPath, CubicBez, ParamCurveArclen, Point, Vec2};
+use kurbo::{Affine, BezPath, Point, Vec2};
 
 use crate::util;
 
@@ -191,8 +191,10 @@ impl HyperBezier {
     /// The points are given relative to p0 at (0, 0) and p3 at
     /// (1, 0).
     pub fn solve(p1: Point, p2: Point) -> HyperBezier {
-        fn inv_arm_len(h: f64, chord: f64) -> f64 {
-            let a = h * 3.0 * chord.powf(1.0);
+        fn inv_arm_len(h: f64, th: f64) -> f64 {
+            // This formula ensures that bezier parameters approximating
+            // a circular arc map to a bias of 1.0.
+            let a = h * 1.5 * (th.cos() + 1.0);
             if a < 1.0 {
                 2.0 - a.powf(2.0)
             } else {
@@ -201,13 +203,11 @@ impl HyperBezier {
         }
         let v1 = p1.to_vec2();
         let v2 = Point::new(1.0, 0.0) - p2;
-        let c = CubicBez::new(Point::ORIGIN, p1, p2, Point::new(1.0, 0.0));
         // TODO: signs feel reversed here, but it all works out in the end.
         let th0 = -v1.atan2();
         let th1 = v2.atan2();
-        let chord = 1.0 / c.arclen(1e-3);
-        let bias0 = inv_arm_len(v1.hypot(), chord);
-        let bias1 = inv_arm_len(v2.hypot(), chord);
+        let bias0 = inv_arm_len(v1.hypot(), th0);
+        let bias1 = inv_arm_len(v2.hypot(), th1);
         let theta_params = ThetaParams {
             th0,
             bias0,
