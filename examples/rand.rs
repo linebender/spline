@@ -7,7 +7,7 @@ use rand::distributions::{Distribution, Uniform};
 
 use kurbo::Point;
 
-use spline::SimpleSpline;
+use spline::SplineSpec;
 
 fn main() {
     let mut rng = rand::thread_rng();
@@ -19,11 +19,12 @@ fn main() {
             Point::new(x, y)
         })
         .collect::<Vec<_>>();
-    let mut spline = SimpleSpline::new(pts.clone());
-    for iter_ix in 0..10 {
-        let abs_err = spline.iterate(iter_ix);
-        eprintln!("err: {}", abs_err);
+    let mut spec = SplineSpec::new();
+    spec.move_to(pts[0]);
+    for pt in &pts[1..] {
+        spec.spline_to(None, None, *pt, true);
     }
+    let spline = spec.solve();
     let path = spline.render();
     println!(
         r##"<!DOCTYPE html>
