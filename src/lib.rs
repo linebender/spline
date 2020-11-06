@@ -11,8 +11,8 @@
 //! [research spline]: https://github.com/raphlinus/spline-research
 
 mod hyperbezier;
-mod spline;
+mod simple_spline;
 mod util;
 
 pub use hyperbezier::{HyperBezier, ThetaParams};
-pub use spline::Spline;
+pub use simple_spline::SimpleSpline;
