@@ -7,7 +7,7 @@ use kurbo::{Affine, BezPath, Point, Vec2};
 use crate::hyperbezier::{HyperBezier, HyperBezierResult, ThetaParams};
 use crate::util;
 
-pub struct Spline {
+pub struct SimpleSpline {
     pts: Vec<Point>,
     ths: Vec<f64>,
 }
@@ -18,10 +18,10 @@ struct Seg {
     d: Vec2,
 }
 
-impl Spline {
-    pub fn new(pts: Vec<Point>) -> Spline {
+impl SimpleSpline {
+    pub fn new(pts: Vec<Point>) -> SimpleSpline {
         let ths = Self::initial_ths(&pts);
-        Spline { pts, ths }
+        SimpleSpline { pts, ths }
     }
 
     fn initial_ths(pts: &[Point]) -> Vec<f64> {
@@ -150,7 +150,7 @@ impl Spline {
 
 fn bias_for_theta(th: f64) -> f64 {
     // Tangent angles up to this limit will be Euler spirals.
-    const EULER_LIMIT: f64 = 0.4 * PI;
+    const EULER_LIMIT: f64 = 0.3 * PI;
     let th = th.abs();
     if th < EULER_LIMIT {
         1.0
