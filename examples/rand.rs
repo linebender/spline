@@ -28,11 +28,11 @@ fn main() {
     let path = spline.render();
     println!(
         r##"<!DOCTYPE html>
-    <html>
+<html>
     <body>
     <svg height="500" width="500">
       <path d="{}" fill="none" stroke="#000" />"
-    </html>"##,
+    "##,
         path.to_svg()
     );
     for pt in &pts {
@@ -43,6 +43,7 @@ fn main() {
     }
     println!(
         r#"    </svg>
-    </body>"#
+    </body>
+</html>"#
     );
 }
