@@ -169,7 +169,7 @@ impl SplineSpec {
                 let (th0, bias0) = if let Some(p1) = p1 {
                     let v0 = (a_inv * p1).to_vec2();
                     let (th0, bias0) = HyperBezier::params_for_v(v0);
-                    (Some(-th0), Some(bias0))
+                    (Some(th0), Some(bias0))
                 } else {
                     match self.prev_el(i + 1) {
                         Some(Element::SplineTo(_, None, _, _)) => {
@@ -194,7 +194,7 @@ impl SplineSpec {
                 let (th1, bias1) = if let Some(p2) = p2 {
                     let v1 = Point::new(1.0, 0.0) - (a_inv * p2);
                     let (th1, bias1) = HyperBezier::params_for_v(v1);
-                    (Some(th1), Some(bias1))
+                    (Some(-th1), Some(bias1))
                 } else {
                     match self.next_el(i + 1) {
                         Some(Element::SplineTo(None, _, _, _)) => {
@@ -266,7 +266,7 @@ impl SplineSpec {
                 };
                 let seg0p = HyperBezier::solve_for_theta(&params0);
                 let k0p = seg0p.compute().k1 / prev_ch;
-                
+
                 let th0p = seg.th0 - EPSILON;
                 let params1 = ThetaParams {
                     th0: -th0p,
@@ -349,14 +349,19 @@ impl Spline {
     /// Render the spline to a Bézier path.
     pub fn render(&self) -> BezPath {
         let mut path = BezPath::new();
+        self.render_extend(&mut path);
+        path
+    }
+
+    /// Render the spline, appending to the given path.
+    pub fn render_extend(&self, path: &mut BezPath) {
         path.move_to(self.segments[0].p0);
         for segment in &self.segments {
-            segment.render(&mut path);
+            segment.render(path);
         }
         if self.is_closed {
             path.close_path();
         }
-        path
     }
 }
 
@@ -454,12 +459,17 @@ impl Segment {
     /// This does not include the initial moveto, so the caller needs to
     /// supply that separately.
     pub fn render(&self, path: &mut BezPath) {
-        let p = self.p0;
-        let d = self.p3 - p;
-        let a = Affine::new([d.x, d.y, -d.y, d.x, p.x, p.y]);
-        let curve = self.hb.render(64);
-        for el in curve.elements().iter().skip(1) {
-            path.push(a * *el);
+        if self.is_line() {
+            path.line_to(self.p3);
+        } else {
+            let p = self.p0;
+            let d = self.p3 - p;
+            let a = Affine::new([d.x, d.y, -d.y, d.x, p.x, p.y]);
+            // TODO: smarter subdivision plan.
+            let curve = self.hb.render(64);
+            for el in curve.elements().iter().skip(1) {
+                path.push(a * *el);
+            }
         }
     }
 }

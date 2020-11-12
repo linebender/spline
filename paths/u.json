@@ -1,0 +1,15 @@
+{"subpaths": [
+    {
+        "pts": [
+            {"OnCurve":[50.0, 50.0, true]},
+            {"OnCurve":[50.0, 225.0, true]},
+            {"Auto": null},
+            {"Auto": null},
+            {"OnCurve":[200.0, 400.0, true]},
+            {"Auto": null},
+            {"Auto": null},
+            {"OnCurve":[350.0, 225.0, true]},
+            {"OnCurve":[350.0, 50.0, true]}
+        ]}
+    
+]}
