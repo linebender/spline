@@ -55,6 +55,9 @@ fn subpath_to_spline(p: &Subpath) -> Spline {
         }
     }
     if p.is_closed {
+        if matches!(p.pts.last(), Some(Point::OnCurve(..))) {
+            spec.line_to(p.pts[0].to_kurbo().unwrap(), p.pts[0].is_smooth());
+        }
         spec.close();
     }
     spec.solve()

@@ -2,7 +2,7 @@
 
 use kurbo::{Affine, BezPath, Point, Vec2};
 
-use crate::hyperbezier::{HyperBezier, ThetaParams};
+use crate::hyperbezier::{self, HyperBezier, ThetaParams};
 use crate::simple_spline;
 use crate::util;
 
@@ -42,6 +42,8 @@ pub struct Segment {
     /// Actual curvature at end point.
     pub k1: f64,
     pub hb: HyperBezier,
+    /// Length of unit-arclen hb chord (for curvature).
+    ch: f64,
 }
 
 enum Element {
@@ -90,6 +92,7 @@ impl SplineSpec {
         for i in 0..10 {
             let err = self.iterate(i);
             eprintln!("err = {}", err);
+            self.adjust_tensions(i);
             self.update_segs();
         }
         Spline {
@@ -291,6 +294,36 @@ impl SplineSpec {
         abs_err
     }
 
+    /// Iterate towards G2 continuity by adjusting bias values.
+    fn adjust_tensions(&mut self, iter_ix: usize) {
+        const MIN_BIAS: f64 = -0.9;
+        let scale = (0.25 * (iter_ix as f64 + 1.0)).tanh();
+        for i in 1..self.elements.len() {
+            if self.elements[i].is_auto_p1()
+                && self.prev_el(i).map(Element::is_given_p2).unwrap_or(false)
+            {
+                let prev_seg = &self.segments[self.prev_ix(i) - 1];
+                let seg = &self.segments[i - 1];
+                let this_ch = seg.chord().hypot();
+                let bias = hyperbezier::compute_k_inv(prev_seg.k1 * this_ch / (seg.hb.k0 * seg.ch));
+                let bias = bias.max(MIN_BIAS);
+                let bias = seg.hb.bias0 + scale * (bias - seg.hb.bias0);
+                self.segments[i - 1].hb.bias0 = bias;
+            }
+            if self.elements[i].is_auto_p2()
+                && self.next_el(i).map(Element::is_given_p1).unwrap_or(false)
+            {
+                let next_seg = &self.segments[self.next_ix(i) - 1];
+                let seg = &self.segments[i - 1];
+                let this_ch = seg.chord().hypot();
+                let bias = hyperbezier::compute_k_inv(next_seg.k0 * this_ch / (seg.hb.k1 * seg.ch));
+                let bias = bias.max(MIN_BIAS);
+                let bias = seg.hb.bias1 + scale * (bias - seg.hb.bias1);
+                self.segments[i - 1].hb.bias1 = bias;
+            }
+        }
+    }
+
     /// The previous element.
     ///
     /// This always gives a result as if the curve were closed, without checking
@@ -389,6 +422,14 @@ impl Element {
     fn is_auto_p2(&self) -> bool {
         matches!(self, Element::SplineTo(_, None, _, _))
     }
+
+    fn is_given_p1(&self) -> bool {
+        matches!(self, Element::SplineTo(Some(_), _, _, _))
+    }
+
+    fn is_given_p2(&self) -> bool {
+        matches!(self, Element::SplineTo(_, Some(_), _, _))
+    }
 }
 
 impl Segment {
@@ -424,6 +465,7 @@ impl Segment {
             k0: r.k0 * k_scale,
             k1: r.k1 * k_scale,
             hb,
+            ch: r.chord,
         }
     }
 
@@ -443,6 +485,7 @@ impl Segment {
                 k1: 0.0,
                 bias1: 1.0,
             },
+            ch: 1.0,
         }
     }
 

@@ -17,4 +17,4 @@ mod util;
 
 pub use hyperbezier::{HyperBezier, ThetaParams};
 pub use simple_spline::SimpleSpline;
-pub use spline::{Segment, Spline, SplineSpec};
+pub use crate::spline::{Segment, Spline, SplineSpec};
