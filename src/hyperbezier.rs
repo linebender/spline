@@ -268,3 +268,37 @@ fn compute_k(bias: f64) -> f64 {
         sr / (1.0 - a).powi(2)
     }
 }
+
+/// Compute bias given relative endpoint curvature.
+///
+/// This is the inverse of compute_k.
+pub(crate) fn compute_k_inv(k: f64) -> f64 {
+    if k <= 2.0 {
+        k * 0.5
+    } else {
+        // We'll solve this by bisection for now, just for simplicity.
+        // I'm sure there are much better approximations.
+        let mut est_lo = 2.0 - 2.0 / k;
+        let mut est_hi = 2.0 - 1.0 / k;
+        const N: usize = 20;
+        for _ in 0..N {
+            let est = 0.5 * (est_lo + est_hi);
+            if compute_k(est) > k {
+                est_hi = est;
+            } else {
+                est_lo = est;
+            }
+        }
+        0.5 * (est_lo + est_hi)
+    }
+}
+
+#[test]
+fn test_k() {
+    for k in &[0.0, 1.0, 2.0, 3.0, 5.0, 10.0, 20.0] {
+        let bias = compute_k_inv(*k);
+        let actual_k = compute_k(bias);
+        assert!((k - actual_k).abs() < 1e-5);
+        //println!("{}, {}, {}", k, bias, actual_k);
+    }
+}

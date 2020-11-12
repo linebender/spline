@@ -4,7 +4,7 @@
             {"OnCurve":[50.0, 50.0, true]},
             {"OnCurve":[50.0, 225.0, true]},
             {"Auto": null},
-            {"OffCurve": [150, 400]},
+            {"OffCurve": [75, 400]},
             {"OnCurve":[200.0, 400.0, true]},
             {"Auto": null},
             {"Auto": null},
