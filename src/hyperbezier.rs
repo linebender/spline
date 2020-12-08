@@ -34,6 +34,7 @@ use crate::util;
 /// A few observation. If both bias values are 1, then the curve is an Euler
 /// spiral. If both bias values are less than 1, then curvature is a cubic
 /// polynomial as a function of arclength, so it is a Spiro curve.
+#[derive(Copy, Clone, Debug)]
 pub struct HyperBezier {
     pub k0: f64,
     pub bias0: f64,
@@ -45,6 +46,7 @@ pub struct HyperBezier {
 ///
 /// Here, angles are given relative to the chord, but the bias parameters
 /// are the same as for `HyperBezier`.
+#[derive(Copy, Clone, Debug)]
 pub struct ThetaParams {
     pub th0: f64,
     pub bias0: f64,
@@ -57,7 +59,7 @@ pub struct ThetaParams {
 /// The `th0` and `th1` values are defined so that if they are have the
 /// same sign, the curve is convex, but if they are opposite signs, it is
 /// an "s" shape.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct HyperBezierResult {
     /// Tangent angle from the chord to the curve at the start point.
     pub th0: f64,

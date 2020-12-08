@@ -9,6 +9,7 @@ use crate::util;
 /// The specification of a spline curve.
 ///
 /// Currently this represents a single subpath.
+#[derive(Clone, Debug)]
 pub struct SplineSpec {
     elements: Vec<Element>,
     is_closed: bool,
@@ -22,12 +23,14 @@ pub struct SplineSpec {
     segments: Vec<Segment>,
 }
 
+#[derive(Clone, Debug)]
 pub struct Spline {
     segments: Vec<Segment>,
     is_closed: bool,
 }
 
 /// A single spline segment.
+#[derive(Clone, Debug)]
 pub struct Segment {
     pub p0: Point,
     pub p1: Point,
@@ -46,6 +49,7 @@ pub struct Segment {
     ch: f64,
 }
 
+#[derive(Copy, Clone, Debug)]
 enum Element {
     MoveTo(Point),
     LineTo(Point, bool),
