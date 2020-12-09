@@ -451,11 +451,11 @@ impl Segment {
         let v = p3 - p0;
         let a = Affine::new([v.x, v.y, -v.y, v.x, p0.x, p0.y]);
         let p1 = p1.unwrap_or_else(|| {
-            let p1 = HyperBezier::v_for_params(-th0, hb.bias0).to_point();
+            let p1 = HyperBezier::v_for_params(th0, hb.bias0).to_point();
             a * p1
         });
         let p2 = p2.unwrap_or_else(|| {
-            let p2 = Point::new(1.0, 0.0) - HyperBezier::v_for_params(th1, hb.bias1);
+            let p2 = Point::new(1.0, 0.0) - HyperBezier::v_for_params(-th1, hb.bias1);
             a * p2
         });
         let k_scale = v.hypot().recip();
