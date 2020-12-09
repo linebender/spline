@@ -26,6 +26,11 @@ fn main() {
     }
     let spline = spec.solve();
     let path = spline.render();
+    let mut auto_pts = Vec::new();
+    for seg in spline.segments() {
+        auto_pts.push(seg.p1);
+        auto_pts.push(seg.p2);
+    }
     println!(
         r##"<!DOCTYPE html>
 <html>
@@ -38,6 +43,12 @@ fn main() {
     for pt in &pts {
         println!(
             r#"      <circle cx="{}" cy="{}", r="3", fill="blue" />"#,
+            pt.x, pt.y
+        )
+    }
+    for pt in &auto_pts {
+        println!(
+            r##"      <circle cx="{}" cy="{}", r="3", fill="#88c" />"##,
             pt.x, pt.y
         )
     }
