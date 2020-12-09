@@ -15,6 +15,6 @@ mod simple_spline;
 mod spline;
 mod util;
 
+pub use crate::spline::{Element, Segment, Spline, SplineSpec};
 pub use hyperbezier::{HyperBezier, ThetaParams};
 pub use simple_spline::SimpleSpline;
-pub use crate::spline::{Segment, Spline, SplineSpec};

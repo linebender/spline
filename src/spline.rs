@@ -1,6 +1,7 @@
 //! A general purpose spline with explicit control.
 
 use kurbo::{Affine, BezPath, Point, Vec2};
+use std::borrow::Cow;
 
 use crate::hyperbezier::{self, HyperBezier, ThetaParams};
 use crate::simple_spline;
@@ -21,11 +22,16 @@ pub struct SplineSpec {
     dths: Vec<f64>,
     /// The tentative solution.
     segments: Vec<Segment>,
+    /// `true` if the inputs have changed, and the spline needs to be solved.
+    dirty: bool,
 }
 
+/// A solved spline.
+///
+/// This can be converted to a Bézier path with [`Spline::render`].
 #[derive(Clone, Debug)]
-pub struct Spline {
-    segments: Vec<Segment>,
+pub struct Spline<'spec> {
+    segments: Cow<'spec, [Segment]>,
     is_closed: bool,
 }
 
@@ -49,10 +55,30 @@ pub struct Segment {
     ch: f64,
 }
 
+/// An imperative description of a spline path.
 #[derive(Copy, Clone, Debug)]
-enum Element {
+pub enum Element {
+    /// The start of a spline path.
     MoveTo(Point),
+    /// A line-to operation.
+    ///
+    /// The `bool` indicates whether the operation is smooth, that is whether
+    /// or not the curve into and out of the control point maintains consistent
+    /// [curvature][smoothness]. This is only relevant if this is followed
+    /// by a [`SplineTo`] element.
+    ///
+    /// [smoothness]: https://en.wikipedia.org/wiki/Smoothness#Smoothness_of_curves_and_surfaces
+    /// [`SplineTo`]: [Element::SplineTo]
     LineTo(Point, bool),
+    /// A spline-to operation.
+    ///
+    /// The first two points are like the control or off-curve points in
+    /// a Bézier curve; if they are `None` they will be autocomputed by
+    /// the solver.
+    ///
+    /// The `bool` indicates whether the operation is smooth, as per [`LineTo`].
+    ///
+    /// [`LineTo`]: [Element::LineTo]
     SplineTo(Option<Point>, Option<Point>, Point, bool),
 }
 
@@ -65,42 +91,74 @@ impl SplineSpec {
             ths: Vec::new(),
             dths: Vec::new(),
             segments: Vec::new(),
+            dirty: true,
         }
     }
 
     pub fn move_to(&mut self, p: Point) {
         debug_assert!(self.elements.is_empty());
         self.elements.push(Element::MoveTo(p));
+        self.dirty = true;
     }
 
     pub fn line_to(&mut self, p: Point, is_smooth: bool) {
         debug_assert!(!self.elements.is_empty());
         self.elements.push(Element::LineTo(p, is_smooth));
+        self.dirty = true;
     }
 
     pub fn spline_to(&mut self, p1: Option<Point>, p2: Option<Point>, p3: Point, is_smooth: bool) {
         debug_assert!(!self.elements.is_empty());
         self.elements.push(Element::SplineTo(p1, p2, p3, is_smooth));
+        self.dirty = true;
     }
 
     pub fn close(&mut self) {
         debug_assert!(self.elements.len() > 1);
         self.is_closed = true;
+        self.dirty = true;
     }
 
-    pub fn solve(mut self) -> Spline {
-        self.segments = self.initial_segs();
-        self.ths = self.initial_ths();
-        self.dths = vec![0.0; self.ths.len()];
-        self.update_segs();
-        for i in 0..10 {
-            let err = self.iterate(i);
-            eprintln!("err = {}", err);
-            self.adjust_tensions(i);
+    pub fn elements(&self) -> &[Element] {
+        &self.elements
+    }
+
+    /// Return a mutable reference to the elements.
+    ///
+    /// This can be used to update the elements in place, such as while editing.
+    /// This always marks us as dirty; if you do not need mutable access you
+    /// should prefer [`SplineSpec::elements`].
+    ///
+    /// # Note
+    ///
+    /// It is possible via this method to leave the elements in an inconsistent
+    /// state, such as by inserting multiple `MoveTo` elements. Care is advised.
+    pub fn elements_mut(&mut self) -> &mut Vec<Element> {
+        self.dirty = true;
+        &mut self.elements
+    }
+
+    /// Returns the solved spline based on the current elements.
+    ///
+    /// The returned [`Spline`] borrows data from `self`; if you need an
+    /// owned version you can call [`Spline::into_owned`].
+    pub fn solve(&mut self) -> Spline {
+        if self.dirty {
+            self.segments = self.initial_segs();
+            self.ths = self.initial_ths();
+            self.dths = vec![0.0; self.ths.len()];
             self.update_segs();
+            for i in 0..10 {
+                let err = self.iterate(i);
+                eprintln!("err = {}", err);
+                self.adjust_tensions(i);
+                self.update_segs();
+            }
+            self.dirty = false;
         }
+
         Spline {
-            segments: self.segments,
+            segments: Cow::Borrowed(self.segments.as_slice()),
             is_closed: self.is_closed,
         }
     }
@@ -377,7 +435,16 @@ impl SplineSpec {
     }
 }
 
-impl Spline {
+impl<'a> Spline<'a> {
+    /// Return an owned version of this `Spline`, cloning its data if necessary.
+    pub fn into_owned(self) -> Spline<'static> {
+        let segments = self.segments.into_owned();
+        Spline {
+            segments: Cow::Owned(segments),
+            is_closed: self.is_closed,
+        }
+    }
+
     /// The segments of the spline.
     pub fn segments(&self) -> &[Segment] {
         &self.segments
@@ -393,7 +460,7 @@ impl Spline {
     /// Render the spline, appending to the given path.
     pub fn render_extend(&self, path: &mut BezPath) {
         path.move_to(self.segments[0].p0);
-        for segment in &self.segments {
+        for segment in &*self.segments {
             segment.render(path);
         }
         if self.is_closed {

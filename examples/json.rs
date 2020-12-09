@@ -60,7 +60,7 @@ fn subpath_to_spline(p: &Subpath) -> Spline {
         }
         spec.close();
     }
-    spec.solve()
+    spec.solve().into_owned()
 }
 
 fn path_to_splines(p: &Path) -> Vec<Spline> {
