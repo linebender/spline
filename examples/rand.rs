@@ -42,13 +42,13 @@ fn main() {
     );
     for pt in &pts {
         println!(
-            r#"      <circle cx="{}" cy="{}", r="3", fill="blue" />"#,
+            r#"      <circle cx="{}" cy="{}" r="3" fill="blue" />"#,
             pt.x, pt.y
         )
     }
     for pt in &auto_pts {
         println!(
-            r##"      <circle cx="{}" cy="{}", r="3", fill="#88c" />"##,
+            r##"      <circle cx="{}" cy="{}" r="3" fill="#88c" />"##,
             pt.x, pt.y
         )
     }
