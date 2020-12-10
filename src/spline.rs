@@ -1,7 +1,10 @@
 //! A general purpose spline with explicit control.
 
-use kurbo::{Affine, BezPath, Point, Vec2};
 use std::borrow::Cow;
+
+use kurbo::{Affine, BezPath, Point, Vec2};
+#[cfg(feature = "serde")]
+use serde_::{Deserialize, Serialize};
 
 use crate::hyperbezier::{self, HyperBezier, ThetaParams};
 use crate::simple_spline;
@@ -11,6 +14,11 @@ use crate::util;
 ///
 /// Currently this represents a single subpath.
 #[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_")
+)]
 pub struct SplineSpec {
     elements: Vec<Element>,
     is_closed: bool,
@@ -18,12 +26,21 @@ pub struct SplineSpec {
     ///
     /// There is one of these for each smooth on-curve point with an auto
     /// point on both sides.
+    #[cfg_attr(feature = "serde", serde(skip))]
     ths: Vec<f64>,
+    #[cfg_attr(feature = "serde", serde(skip))]
     dths: Vec<f64>,
     /// The tentative solution.
+    #[cfg_attr(feature = "serde", serde(skip))]
     segments: Vec<Segment>,
     /// `true` if the inputs have changed, and the spline needs to be solved.
+    #[cfg_attr(feature = "serde", serde(skip, default = "serde_true"))]
     dirty: bool,
+}
+
+#[cfg(feature = "serde")]
+fn serde_true() -> bool {
+    true
 }
 
 /// A solved spline.
@@ -57,6 +74,11 @@ pub struct Segment {
 
 /// An imperative description of a spline path.
 #[derive(Copy, Clone, Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_")
+)]
 pub enum Element {
     /// The start of a spline path.
     MoveTo(Point),
@@ -478,7 +500,7 @@ impl Element {
         }
     }
 
-    fn endpoint(&self) -> Point {
+    pub fn endpoint(&self) -> Point {
         match self {
             Element::MoveTo(p) => *p,
             Element::LineTo(p, _) => *p,
