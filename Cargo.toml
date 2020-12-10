@@ -12,8 +12,17 @@ categories = ["graphics"]
 
 [dependencies]
 kurbo = "0.7"
+serde_ = { version = "1.0.117", package="serde", features = ["derive"], optional = true }
 
 [dev-dependencies]
 rand = "0.7"
-serde = { version = "1.0.117", features = ["derive"] }
 serde_json = "1.0.59"
+
+[features]
+serde = ["serde_", "kurbo/serde"]
+
+
+[[example]]
+name = "json"
+required-features = ["serde"]
+

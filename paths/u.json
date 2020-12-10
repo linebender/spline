@@ -1,15 +1,53 @@
-{"subpaths": [
-    {
-        "pts": [
-            {"OnCurve":[50.0, 50.0, true]},
-            {"OnCurve":[50.0, 225.0, true]},
-            {"Auto": null},
-            {"Auto": null},
-            {"OnCurve":[200.0, 400.0, true]},
-            {"Auto": null},
-            {"Auto": null},
-            {"OnCurve":[350.0, 225.0, true]},
-            {"OnCurve":[350.0, 50.0, true]}
-        ]}
-    
-]}
+[
+  {
+    "elements": [
+      {
+        "MoveTo": {
+          "x": 50.0,
+          "y": 50.0
+        }
+      },
+      {
+        "LineTo": [
+          {
+            "x": 50.0,
+            "y": 225.0
+          },
+          true
+        ]
+      },
+      {
+        "SplineTo": [
+          null,
+          null,
+          {
+            "x": 200.0,
+            "y": 400.0
+          },
+          true
+        ]
+      },
+      {
+        "SplineTo": [
+          null,
+          null,
+          {
+            "x": 350.0,
+            "y": 225.0
+          },
+          true
+        ]
+      },
+      {
+        "LineTo": [
+          {
+            "x": 350.0,
+            "y": 50.0
+          },
+          true
+        ]
+      }
+    ],
+    "is_closed": false
+  }
+]

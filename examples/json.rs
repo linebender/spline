@@ -1,81 +1,22 @@
-use serde::Deserialize;
+//! Generate an SVG from a json description of a spline.
+//!
+//! This is intended to be used as a debugging tool. To generate the input
+//! data, use serde_json to a list of `SplineSpec` objects.
 
-use kurbo::BezPath;
+use kurbo::{BezPath, Point};
 
-use spline::{Spline, SplineSpec};
-
-#[derive(Deserialize, Debug)]
-struct Path {
-    subpaths: Vec<Subpath>,
-}
-
-#[derive(Deserialize, Debug)]
-struct Subpath {
-    pts: Vec<Point>,
-    #[serde(default)]
-    is_closed: bool,
-}
-
-#[derive(Clone, Copy, Deserialize, Debug)]
-enum Point {
-    OnCurve(f64, f64, bool),
-    Auto,
-    OffCurve(f64, f64),
-}
-
-impl Point {
-    fn to_kurbo(&self) -> Option<kurbo::Point> {
-        match self {
-            Point::OnCurve(x, y, _) => Some(kurbo::Point::new(*x, *y)),
-            Point::OffCurve(x, y) => Some(kurbo::Point::new(*x, *y)),
-            _ => None,
-        }
-    }
-
-    fn is_smooth(&self) -> bool {
-        match self {
-            Point::OnCurve(_, _, is_smooth) => *is_smooth,
-            _ => false,
-        }
-    }
-}
-
-fn subpath_to_spline(p: &Subpath) -> Spline {
-    let mut spec = SplineSpec::new();
-    spec.move_to(p.pts[0].to_kurbo().unwrap());
-    let mut i = 1;
-    while i < p.pts.len() {
-        if matches!(p.pts[i], Point::OffCurve(..) | Point::Auto) {
-            let last_pt = p.pts[(i + 2) % p.pts.len()];
-            spec.spline_to(p.pts[i].to_kurbo(), p.pts[i + 1].to_kurbo(), last_pt.to_kurbo().unwrap(), last_pt.is_smooth());
-            i += 3;
-        } else if let Point::OnCurve(x, y, is_smooth) = p.pts[i] {
-            spec.line_to(kurbo::Point::new(x, y), is_smooth);
-            i += 1;
-        }
-    }
-    if p.is_closed {
-        if matches!(p.pts.last(), Some(Point::OnCurve(..))) {
-            spec.line_to(p.pts[0].to_kurbo().unwrap(), p.pts[0].is_smooth());
-        }
-        spec.close();
-    }
-    spec.solve().into_owned()
-}
-
-fn path_to_splines(p: &Path) -> Vec<Spline> {
-    p.subpaths.iter().map(subpath_to_spline).collect()
-}
+use spline::{Element, SplineSpec};
 
 fn main() {
     let path = std::env::args().skip(1).next().expect("needs filename");
     let data = std::fs::read_to_string(path).unwrap();
-    let path: Path = serde_json::from_str(&data).unwrap();
-    let splines = path_to_splines(&path);
+    let mut splines: Vec<SplineSpec> = serde_json::from_str(&data).unwrap();
     let mut bp = BezPath::new();
-    for spline in &splines {
+    for spec in &mut splines {
+        let spline = spec.solve();
         spline.render_extend(&mut bp);
     }
+
     println!(
         r##"<!DOCTYPE html>
 <html>
@@ -85,9 +26,59 @@ fn main() {
     "##,
         bp.to_svg()
     );
+    for spec in &mut splines {
+        let spline = spec.solve();
+        // first draw the points in the segments, which will include auto points
+        for seg in spline.segments() {
+            print_point_stroke(seg.p1, "grey");
+            print_point_stroke(seg.p2, "grey");
+            print_line(seg.p0, seg.p1);
+            print_line(seg.p2, seg.p3);
+        }
+        // then draw the points from the elements, which will only be non-auto
+        // we keep track of points to draw handles
+        for el in spec.elements() {
+            match el {
+                Element::MoveTo(pt) => print_point_fill(*pt, "blue"),
+                Element::LineTo(pt, true) => print_point_fill(*pt, "green"),
+                Element::LineTo(pt, false) => print_point_fill(*pt, "blue"),
+                Element::SplineTo(p1, p2, p3, smooth) => {
+                    if let Some(p1) = p1 {
+                        print_point_fill(*p1, "grey");
+                    }
+                    if let Some(p2) = p2 {
+                        print_point_fill(*p2, "grey");
+                    }
+                    let color = if *smooth { "green" } else { "blue" };
+                    print_point_fill(*p3, color);
+                }
+            }
+        }
+    }
+
     println!(
         r#"    </svg>
     </body>
 </html>"#
+    );
+}
+
+fn print_line(p1: Point, p2: Point) {
+    println!(
+        r#"      <line x1="{}" y1="{}", x2="{}" y2="{}" style="stroke:grey;stroke-wdith:1"  />"#,
+        p1.x, p1.y, p2.x, p2.y
+    );
+}
+fn print_point_fill(point: Point, color: &str) {
+    println!(
+        r#"      <circle cx="{}" cy="{}" r="3" fill="{}" />"#,
+        point.x, point.y, color
+    );
+}
+
+fn print_point_stroke(point: Point, color: &str) {
+    println!(
+        r#"      <circle cx="{}" cy="{}" r="3" fill="white" stroke="{}" stroke-width="1" />"#,
+        point.x, point.y, color
     );
 }
