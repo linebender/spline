@@ -26,3 +26,8 @@ serde = ["serde_", "kurbo/serde"]
 name = "json"
 required-features = ["serde"]
 
+[workspace]
+members = ["splinetoy"]
+
+[patch.crates-io]
+druid = { version = "0.6.0", git = "https://github.com/linebender/druid.git", rev = "65eb3060" }
