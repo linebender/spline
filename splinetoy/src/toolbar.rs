@@ -3,9 +3,8 @@
 use druid::kurbo::{Affine, BezPath, Circle, Line, Shape, Vec2};
 use druid::widget::prelude::*;
 use druid::widget::{Painter, WidgetExt};
-use druid::{Color, Data, HotKey, KeyEvent, Rect, Selector, SysMods, WidgetPod};
+use druid::{Color, Cursor, Data, HotKey, KeyEvent, Rect, Selector, WidgetPod};
 
-//use crate::consts;
 use crate::tools::ToolId;
 
 const TOOLBAR_ITEM_SIZE: Size = Size::new(40.0, 40.0);
@@ -81,6 +80,9 @@ impl Toolbar {
 
 impl<T: Data> Widget<T> for Toolbar {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, _data: &mut T, env: &Env) {
+        if let Event::WindowConnected = event {
+            ctx.set_cursor(&Cursor::Arrow)
+        }
         if let Event::Command(cmd) = event {
             if let Some(tool_id) = cmd.get(SET_TOOL) {
                 let sel = self.items.iter().position(|item| item.name == *tool_id);

@@ -3,7 +3,7 @@ use druid::{
     kurbo::{Circle, Line, Point},
     piet::StrokeStyle,
     widget::{prelude::*, Label},
-    Color, Data, Env, HotKey, KbKey, Rect, Widget, WidgetPod,
+    Color, Data, Env, KbKey, Rect, Widget, WidgetPod,
 };
 
 use crate::edit_session::EditSession;
@@ -78,6 +78,9 @@ impl Widget<EditSession> for Editor {
         }
 
         self.toolbar.event(ctx, event, &mut (), env);
+        if ctx.is_handled() {
+            return;
+        }
         match event {
             Event::WindowConnected => {
                 ctx.set_cursor(&self.tool.preferred_cursor());
@@ -162,7 +165,7 @@ impl Widget<EditSession> for Editor {
             }
 
             if let Some(pt) = data.path.trailing() {
-                draw_handle_if_needed(ctx, SplinePoint::control(pt, false), last_point, false);
+                draw_handle_if_needed(ctx, SplinePoint::control(pt, true), last_point, false);
             }
         }
 

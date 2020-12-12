@@ -188,18 +188,13 @@ impl Path {
 
     fn spline_to(&mut self, p3: impl Into<Point>, smooth: bool) {
         let p3 = p3.into();
-        let prev = self.points().last().cloned().unwrap();
-        let (p1, auto) = match self.trailing.take() {
-            Some(pt) => (pt, false),
-            None => (p3.lerp(prev.point, 1.0 / 3.0), true),
-        };
-        let p2 = p3.lerp(prev.point, 2.0 / 3.0);
-        self.points_mut().push(SplinePoint::control(p1, auto));
+        let prev = self.points().last().cloned().unwrap().point;
+        let p1 = prev.lerp(p3, 1.0 / 3.0);
+        let p2 = prev.lerp(p3, 2.0 / 3.0);
+        self.points_mut().push(SplinePoint::control(p1, true));
         self.points_mut().push(SplinePoint::control(p2, true));
         self.points_mut().push(SplinePoint::on_curve(p3, smooth));
-        // for the solver, convert auto to Option
-        let p1 = if auto { None } else { Some(p1) };
-        self.solver.spline_to(p1, None, p3, smooth);
+        self.solver.spline_to(None, None, p3, smooth);
     }
 
     pub fn remove_last_segment(&mut self) -> Option<PointId> {
@@ -336,7 +331,7 @@ impl Path {
                 let p1 = prev_point.lerp(pt.point, 1.0 / 3.0);
                 let p2 = prev_point.lerp(pt.point, 2.0 / 3.0);
                 self.points_mut().insert(i, SplinePoint::control(p1, true));
-                self.points_mut().insert(i, SplinePoint::control(p2, true));
+                self.points_mut().insert(i + 1, SplinePoint::control(p2, true));
                 break;
             }
             segs_seen += 1;
