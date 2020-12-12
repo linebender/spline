@@ -51,7 +51,7 @@
 //! ```
 
 use druid::kurbo::Point;
-use druid::{EventCtx, Modifiers, MouseButton, MouseButtons, MouseEvent};
+use druid::{Modifiers, MouseButton, MouseButtons, MouseEvent};
 use std::mem;
 
 const DEFAULT_MIN_DRAG_DISTANCE: f64 = 2.0;
