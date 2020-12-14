@@ -197,30 +197,54 @@ impl Path {
         self.solver.spline_to(None, None, p3, smooth);
     }
 
-    pub fn remove_last_segment(&mut self) -> Option<PointId> {
-        Arc::make_mut(&mut self.points).pop();
-        while self
-            .points()
-            .last()
-            .map(|pt| pt.type_.is_control())
-            .unwrap_or(false)
-        {
-            Arc::make_mut(&mut self.points).pop();
+    pub fn delete(&mut self, id: PointId) -> Option<PointId> {
+        let pos = self.idx_for_point(id).unwrap();
+        let pt = self.points[pos];
+        if pt.is_control() {
+            self.points_mut().remove(pos);
+            if self.points.get(pos).map(|pt| pt.is_control()) == Some(true) {
+                self.points_mut().remove(pos);
+            } else {
+                // if the other point in this segment isn't after us, it must be before:
+                self.points_mut().remove(pos - 1);
+            }
+            let (el, _) = self.element_containing_idx_mut(pos);
+            if let Element::SplineTo(_, _, point, smooth) = el {
+                *el = Element::LineTo(*point, *smooth);
+            }
+        } else {
+            let element_idx = self.idx_for_element_containing_point(pos);
+            let removed = self.solver.elements_mut().remove(element_idx);
+            if element_idx == 0 {
+                if let Some(el) = self.solver.elements_mut().get_mut(0) {
+                    *el = Element::MoveTo(el.endpoint());
+                }
+            }
+            self.points_mut().remove(pos);
+            if matches!(removed, Element::SplineTo(..)) {
+                self.points_mut().remove(pos - 1);
+                self.points_mut().remove(pos - 2);
+            }
+            // if removing the first point, and it is followed by a splineto,
+            // remove the control points
+            if self.points.get(0).map(|pt| pt.is_control()) == Some(true) {
+                self.points_mut().remove(0);
+                self.points_mut().remove(0);
+            }
         }
-        self.solver.elements_mut().pop();
-        self.trailing = None;
         self.after_change();
+        // select the last point on delete?
         self.points().last().map(|pt| pt.id)
     }
 
-    pub fn close(&mut self) {
-        if !self.closed && self.points.len() > 2 {
-            let first = self.points.first().cloned().unwrap();
-            self.spline_to(first.point, true);
-            self.closed = true;
-            self.solver.close();
-        }
-    }
+    //pub fn close(&mut self) {
+    //if !self.closed && self.points.len() > 2 {
+    //let first = self.points.first().cloned().unwrap();
+    //self.spline_to(first.point, true);
+    //self.closed = true;
+    //self.solver.close();
+    //}
+    //}
 
     pub fn update_for_drag(&mut self, handle: Point) {
         assert!(!self.points.is_empty());
@@ -301,6 +325,19 @@ impl Path {
         unreachable!();
     }
 
+    fn idx_for_element_containing_point(&self, idx: usize) -> usize {
+        let mut dist_to_pt = idx;
+        for (i, element) in self.solver.elements().iter().enumerate() {
+            match element {
+                Element::MoveTo(..) | Element::LineTo(..) if dist_to_pt == 0 => return i,
+                Element::SplineTo(..) if (0..=2).contains(&dist_to_pt) => return i,
+                Element::LineTo(..) | Element::MoveTo(..) => dist_to_pt -= 1,
+                Element::SplineTo(..) => dist_to_pt = dist_to_pt.saturating_sub(3),
+            }
+        }
+        unreachable!();
+    }
+
     pub fn maybe_convert_line_to_spline(&mut self, click: Point, max_dist: f64) {
         let mut best = (f64::MAX, 0);
         let spline = self.solver.solve();
@@ -331,7 +368,8 @@ impl Path {
                 let p1 = prev_point.lerp(pt.point, 1.0 / 3.0);
                 let p2 = prev_point.lerp(pt.point, 2.0 / 3.0);
                 self.points_mut().insert(i, SplinePoint::control(p1, true));
-                self.points_mut().insert(i + 1, SplinePoint::control(p2, true));
+                self.points_mut()
+                    .insert(i + 1, SplinePoint::control(p2, true));
                 break;
             }
             segs_seen += 1;

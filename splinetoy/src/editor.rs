@@ -3,7 +3,7 @@ use druid::{
     kurbo::{Circle, Line, Point},
     piet::StrokeStyle,
     widget::{prelude::*, Label},
-    Color, Data, Env, KbKey, Rect, Widget, WidgetPod,
+    Color, Data, Env, Rect, Widget, WidgetPod,
 };
 
 use crate::edit_session::EditSession;
@@ -95,11 +95,11 @@ impl Widget<EditSession> for Editor {
             Event::MouseUp(m) => self.send_mouse(ctx, TaggedEvent::Up(m.clone()), data),
             Event::MouseMove(m) => self.send_mouse(ctx, TaggedEvent::Moved(m.clone()), data),
             Event::MouseDown(m) => self.send_mouse(ctx, TaggedEvent::Down(m.clone()), data),
-            Event::KeyDown(key) if key.key == KbKey::Backspace => {
-                data.remove_last_segment();
+            Event::KeyDown(k) => {
+                self.tool.key_down(k, ctx, data);
             }
-            Event::KeyDown(key) if key.key == KbKey::Escape => {
-                data.close();
+            Event::KeyUp(k) => {
+                self.tool.key_up(k, ctx, data);
             }
             Event::Command(cmd) if cmd.is(commands::SAVE_FILE) => {
                 if let Some(file_info) = cmd.get_unchecked(commands::SAVE_FILE) {
