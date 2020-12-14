@@ -32,14 +32,16 @@ impl EditSession {
         self.path.update_for_drag(handle)
     }
 
-    pub fn remove_last_segment(&mut self) {
-        self.selection = self.path.remove_last_segment()
+    pub fn delete(&mut self) {
+        if let Some(selected) = self.selection.take() {
+            self.selection = self.path.delete(selected);
+        }
     }
 
-    pub fn close(&mut self) {
-        self.path.close();
-        self.selection = None;
-    }
+    //pub fn close(&mut self) {
+    //self.path.close();
+    //self.selection = None;
+    //}
 
     pub fn is_selected(&self, id: PointId) -> bool {
         Some(id) == self.selection

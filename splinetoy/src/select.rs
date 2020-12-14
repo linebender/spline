@@ -1,4 +1,4 @@
-use druid::{EventCtx, MouseEvent};
+use druid::{EventCtx, KbKey, KeyEvent, MouseEvent};
 
 use crate::mouse::{Drag, Mouse, MouseDelegate, TaggedEvent};
 use crate::tools::{EditType, Tool, ToolId};
@@ -34,6 +34,19 @@ pub struct Select {
 }
 
 impl Tool for Select {
+    fn key_down(
+        &mut self,
+        key: &KeyEvent,
+        ctx: &mut EventCtx,
+        data: &mut EditSession,
+    ) -> Option<EditType> {
+        if key.key == KbKey::Backspace {
+            data.delete();
+            ctx.set_handled();
+        }
+        None
+    }
+
     fn mouse_event(
         &mut self,
         event: TaggedEvent,
