@@ -105,12 +105,11 @@ impl Widget<EditSession> for Editor {
                 }
                 self.tool.key_up(k, ctx, data);
             }
-            Event::Command(cmd) if cmd.is(commands::SAVE_FILE) => {
-                if let Some(file_info) = cmd.get_unchecked(commands::SAVE_FILE) {
-                    let json = data.to_json();
-                    if let Err(e) = std::fs::write(file_info.path(), json.as_bytes()) {
-                        println!("Error writing json: {}", e);
-                    }
+            Event::Command(cmd) if cmd.is(commands::SAVE_FILE_AS) => {
+                let file_info = cmd.get_unchecked(commands::SAVE_FILE_AS);
+                let json = data.to_json();
+                if let Err(e) = std::fs::write(file_info.path(), json.as_bytes()) {
+                    println!("Error writing json: {}", e);
                 }
             }
             _ => (),

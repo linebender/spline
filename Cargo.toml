@@ -30,4 +30,4 @@ required-features = ["serde"]
 members = ["splinetoy"]
 
 [patch.crates-io]
-druid = { version = "0.6.0", git = "https://github.com/linebender/druid.git", rev = "65eb3060" }
+druid = { version = "0.6.0", git = "https://github.com/linebender/druid.git", rev = "f0910af7" }
