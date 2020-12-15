@@ -1,4 +1,4 @@
-use druid::{EventCtx, KbKey, KeyEvent, MouseEvent};
+use druid::{EventCtx, KbKey, KeyEvent, MouseEvent, Vec2};
 
 use crate::mouse::{Drag, Mouse, MouseDelegate, TaggedEvent};
 use crate::tools::{self, EditType, Tool, ToolId};
@@ -33,6 +33,26 @@ pub struct Select {
     this_edit_type: Option<EditType>,
 }
 
+impl Select {
+    fn nudge(&mut self, data: &mut EditSession, event: &KeyEvent) {
+        let mut nudge = match event.key {
+            KbKey::ArrowLeft => Vec2::new(-1.0, 0.),
+            KbKey::ArrowRight => Vec2::new(1.0, 0.),
+            KbKey::ArrowUp => Vec2::new(0.0, -1.0),
+            KbKey::ArrowDown => Vec2::new(0.0, 1.0),
+            _ => unreachable!(),
+        };
+
+        if event.mods.meta() {
+            nudge *= 100.;
+        } else if event.mods.shift() {
+            nudge *= 10.;
+        }
+
+        data.nudge_selection(nudge);
+    }
+}
+
 impl Tool for Select {
     fn key_down(
         &mut self,
@@ -40,10 +60,20 @@ impl Tool for Select {
         ctx: &mut EventCtx,
         data: &mut EditSession,
     ) -> Option<EditType> {
-        if key.key == KbKey::Backspace {
-            data.delete();
-            ctx.set_handled();
-        }
+        match key {
+            e if e.key == KbKey::ArrowLeft
+                || e.key == KbKey::ArrowDown
+                || e.key == KbKey::ArrowUp
+                || e.key == KbKey::ArrowRight =>
+            {
+                self.nudge(data, key);
+            }
+            e if e.key == KbKey::Backspace => {
+                data.delete();
+                ctx.set_handled();
+            }
+            _ => (),
+        };
         None
     }
 
