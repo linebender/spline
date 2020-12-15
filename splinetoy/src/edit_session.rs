@@ -1,6 +1,6 @@
 //use std::collections::HashSet;
 
-use druid::{Data, Point};
+use druid::{Data, Point, Vec2};
 
 use crate::path::{Path, PointId, SplinePoint};
 
@@ -38,10 +38,11 @@ impl EditSession {
         }
     }
 
-    //pub fn close(&mut self) {
-    //self.path.close();
-    //self.selection = None;
-    //}
+    pub fn nudge_selection(&mut self, delta: Vec2) {
+        if let Some(sel) = self.selection {
+            self.path.nudge(sel, delta)
+        }
+    }
 
     pub fn is_selected(&self, id: PointId) -> bool {
         Some(id) == self.selection

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use druid::kurbo::{BezPath, Line, ParamCurveNearest};
-use druid::{Data, Point};
+use druid::{Data, Point, Vec2};
 use spline::{Element, SplineSpec};
 
 #[derive(Clone, Debug, Data)]
@@ -235,6 +235,12 @@ impl Path {
         self.after_change();
         // select the last point on delete?
         self.points().last().map(|pt| pt.id)
+    }
+
+    pub fn nudge(&mut self, id: PointId, delta: Vec2) {
+        let idx = self.idx_for_point(id).unwrap();
+        let new_pos = self.points().get(idx).unwrap().point + delta;
+        self.move_point(id, new_pos);
     }
 
     //pub fn close(&mut self) {
