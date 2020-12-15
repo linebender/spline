@@ -151,21 +151,24 @@ impl Widget<EditSession> for Editor {
 
     fn paint(&mut self, ctx: &mut PaintCtx, data: &EditSession, env: &Env) {
         ctx.clear(Color::WHITE);
-        ctx.stroke(data.path.bezier(), &Color::BLACK, 1.0);
-        if !data.path.points().is_empty() {
-            let mut last_point = data.path.points()[0];
-            for pt in data.path.points() {
-                let is_selected = data.is_selected(pt.id);
-                if pt.is_on_curve() {
-                    draw_on_curve(ctx, pt.point, pt.is_smooth(), is_selected);
-                }
-                let is_selected = handle_is_selected(*pt, last_point, data);
-                draw_handle_if_needed(ctx, *pt, last_point, is_selected);
-                last_point = *pt;
-            }
 
-            if let Some(pt) = data.path.trailing() {
-                draw_handle_if_needed(ctx, SplinePoint::control(pt, true), last_point, false);
+        for path in data.iter_paths() {
+            ctx.stroke(path.bezier(), &Color::BLACK, 1.0);
+            if !path.points().is_empty() {
+                let mut last_point = path.points()[0];
+                for pt in path.points() {
+                    let is_selected = data.is_selected(pt.id);
+                    if pt.is_on_curve() {
+                        draw_on_curve(ctx, pt.point, pt.is_smooth(), is_selected);
+                    }
+                    let is_selected = handle_is_selected(*pt, last_point, data);
+                    draw_handle_if_needed(ctx, *pt, last_point, is_selected);
+                    last_point = *pt;
+                }
+
+                if let Some(pt) = path.trailing() {
+                    draw_handle_if_needed(ctx, SplinePoint::control(pt, true), last_point, false);
+                }
             }
         }
 

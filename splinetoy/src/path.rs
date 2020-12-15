@@ -149,16 +149,16 @@ impl Path {
         self.trailing
     }
 
-    pub fn closed(&self) -> bool {
-        self.closed
-    }
-
     pub fn solver(&self) -> &SplineSpec {
         &self.solver
     }
 
     fn points_mut(&mut self) -> &mut Vec<SplinePoint> {
         Arc::make_mut(&mut self.points)
+    }
+
+    pub fn contains_point(&self, id: PointId) -> bool {
+        self.points().iter().any(|pt| pt.id == id)
     }
 
     pub fn add_point(&mut self, point: Point, smooth: bool) -> PointId {
@@ -243,14 +243,18 @@ impl Path {
         self.move_point(id, new_pos);
     }
 
-    //pub fn close(&mut self) {
-    //if !self.closed && self.points.len() > 2 {
-    //let first = self.points.first().cloned().unwrap();
-    //self.spline_to(first.point, true);
-    //self.closed = true;
-    //self.solver.close();
-    //}
-    //}
+    pub fn close(&mut self, smooth: bool) {
+        assert!(!self.closed);
+        let first = self.points.first().cloned().unwrap();
+        if smooth {
+            self.spline_to(first.point, smooth);
+        } else {
+            self.line_to(first.point, smooth);
+        }
+        self.closed = true;
+        self.solver.close();
+        self.after_change();
+    }
 
     pub fn update_for_drag(&mut self, handle: Point) {
         assert!(!self.points.is_empty());
@@ -342,6 +346,12 @@ impl Path {
             }
         }
         unreachable!();
+    }
+
+    pub fn nearest_segment_distance(&self, point: Point) -> f64 {
+        self.bezier.segments().fold(f64::MAX, |acc, seg| {
+            seg.nearest(point, 0.1).1.sqrt().min(acc)
+        })
     }
 
     pub fn maybe_convert_line_to_spline(&mut self, click: Point, max_dist: f64) {
