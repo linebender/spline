@@ -1,7 +1,7 @@
 use druid::{EventCtx, KbKey, KeyEvent, MouseEvent};
 
 use crate::mouse::{Drag, Mouse, MouseDelegate, TaggedEvent};
-use crate::tools::{EditType, Tool, ToolId};
+use crate::tools::{self, EditType, Tool, ToolId};
 use crate::{edit_session::EditSession, path::PointId};
 
 pub const TOOL_NAME: &str = "Select";
@@ -98,7 +98,13 @@ impl MouseDelegate<EditSession> for Select {
 
     fn left_drag_changed(&mut self, drag: Drag, data: &mut EditSession) {
         if let DragState::MovePoint(id) = self.drag {
-            data.move_point(id, drag.current.pos);
+            let Drag { start, current, .. } = drag;
+            let point = if current.mods.shift() {
+                tools::axis_locked_point(current.pos, start.pos)
+            } else {
+                current.pos
+            };
+            data.move_point(id, point);
         }
     }
 

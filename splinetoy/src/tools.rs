@@ -138,7 +138,7 @@ pub fn tool_for_id(id: ToolId) -> Option<Box<dyn Tool>> {
 
 /// Lock the smallest axis of `point` (from `prev`) to that axis on `prev`.
 /// (aka shift + click)
-fn axis_locked_point(point: Point, prev: Point) -> Point {
+pub(crate) fn axis_locked_point(point: Point, prev: Point) -> Point {
     let dxy = prev - point;
     if dxy.x.abs() > dxy.y.abs() {
         Point::new(point.x, prev.y)
