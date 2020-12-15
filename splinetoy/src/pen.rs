@@ -23,7 +23,7 @@ impl MouseDelegate<EditSession> for Pen {
     fn left_down(&mut self, event: &MouseEvent, data: &mut EditSession) {
         if event.count == 1 {
             let smooth = event.mods.alt();
-            let point = match data.path.points().last() {
+            let point = match data.active_path().points().last() {
                 Some(prev) if event.mods.shift() => tools::axis_locked_point(event.pos, prev.point),
                 _ => event.pos,
             };
