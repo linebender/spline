@@ -137,6 +137,10 @@ impl Path {
     //path
     //}
 
+    pub fn is_closed(&self) -> bool {
+        self.closed
+    }
+
     pub fn points(&self) -> &[SplinePoint] {
         &self.points
     }

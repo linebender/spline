@@ -1,6 +1,6 @@
 use druid::{
     commands,
-    kurbo::{Circle, Line, Point},
+    kurbo::{Circle, CubicBez, Line, PathSeg, Point, Vec2},
     piet::StrokeStyle,
     widget::{prelude::*, Label},
     Color, Data, Env, Rect, Widget, WidgetPod,
@@ -8,7 +8,7 @@ use druid::{
 
 use crate::edit_session::EditSession;
 use crate::mouse::{Mouse, TaggedEvent};
-use crate::path::SplinePoint;
+use crate::path::{Path, SplinePoint};
 use crate::pen::Pen;
 use crate::toolbar::{FloatingPanel, Toolbar};
 use crate::tools::{Tool, ToolId};
@@ -155,8 +155,10 @@ impl Widget<EditSession> for Editor {
         for path in data.iter_paths() {
             ctx.stroke(path.bezier(), &Color::BLACK, 1.0);
             if !path.points().is_empty() {
+                let first_selected = data.is_selected(path.points()[0].id);
+                draw_first_point(ctx, path, first_selected);
                 let mut last_point = path.points()[0];
-                for pt in path.points() {
+                for pt in path.points().iter().skip(1) {
                     let is_selected = data.is_selected(pt.id);
                     if pt.is_on_curve() {
                         draw_on_curve(ctx, pt.point, pt.is_smooth(), is_selected);
@@ -180,6 +182,52 @@ impl Widget<EditSession> for Editor {
 
 fn handle_is_selected(p1: SplinePoint, p2: SplinePoint, data: &EditSession) -> bool {
     (p1.is_control() && data.is_selected(p1.id)) || (p2.is_control() && data.is_selected(p2.id))
+}
+
+fn draw_first_point(ctx: &mut PaintCtx, path: &Path, is_selected: bool) {
+    if path.is_closed() {
+        return;
+    }
+    let rad = if is_selected { 4.0 } else { 3.0 };
+    let color = if is_selected {
+        OFF_CURVE_SELECTED_COLOR
+    } else {
+        OFF_CURVE_COLOR
+    };
+
+    if path.points().len() == 1 {
+        let first = path.points()[0].point;
+        let circ = Circle::new(first, rad);
+        ctx.fill(circ, &color);
+    } else if let Some(tangent) = match path.bezier().segments().next() {
+        Some(PathSeg::Line(line)) => Some((line.p1 - line.p0).normalize()),
+        Some(PathSeg::Cubic(cubic)) => Some(tangent_vector(0.05, cubic).normalize()),
+        _ => None,
+    } {
+        let p0 = path.points()[0].point;
+        let line = perp(p0, p0 + tangent, 10.0);
+        ctx.stroke(line, &color, 2.0);
+    }
+}
+
+/// Create a line perpendicular to the line `(p1, p2)`, centered on `p1`.
+fn perp(p0: Point, p1: Point, len: f64) -> Line {
+    let perp_vec = Vec2::new(p0.y - p1.y, p1.x - p0.x);
+    let norm_perp = perp_vec / perp_vec.hypot();
+    let p2 = p0 + (len * -0.5) * norm_perp;
+    let p3 = p0 + (len * 0.5) * norm_perp;
+    Line::new(p2, p3)
+}
+
+/// Return the tangent of the cubic bezier `cb`, at time `t`, as a vector
+/// relative to the path's start point.
+fn tangent_vector(t: f64, cb: CubicBez) -> Vec2 {
+    debug_assert!(t >= 0.0 && t <= 1.0);
+    let CubicBez { p0, p1, p2, p3 } = cb;
+    let one_minus_t = 1.0 - t;
+    3.0 * one_minus_t.powi(2) * (p1 - p0)
+        + 6.0 * t * one_minus_t * (p2 - p1)
+        + 3.0 * t.powi(2) * (p3 - p2)
 }
 
 fn draw_on_curve(ctx: &mut PaintCtx, pt: Point, smooth: bool, selected: bool) {
