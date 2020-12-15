@@ -345,17 +345,25 @@ impl Path {
     }
 
     pub fn maybe_convert_line_to_spline(&mut self, click: Point, max_dist: f64) {
+        if self.points().is_empty() {
+            return;
+        }
         let mut best = (f64::MAX, 0);
-        let spline = self.solver.solve();
-        for (i, seg) in spline.segments().iter().enumerate() {
-            if !seg.is_line() {
+        let mut prev_point = self.points().first().map(|pt| pt.point);
+        for (i, pt) in self.points().iter().enumerate().skip(1) {
+            if pt.is_control() {
+                prev_point = None;
                 continue;
+            } else {
+                if let Some(prev) = prev_point.take() {
+                    let line = Line::new(prev, pt.point);
+                    let closest = line.nearest(click, 0.1).1.sqrt();
+                    if closest < best.0 {
+                        best = (closest, i)
+                    }
+                }
             }
-            let line = Line::new(seg.p0, seg.p3);
-            let closest = line.nearest(click, 0.1).1.sqrt();
-            if closest < best.0 {
-                best = (closest, i)
-            }
+            prev_point = Some(pt.point);
         }
 
         if best.0 > max_dist {
@@ -363,39 +371,24 @@ impl Path {
         }
 
         // insert two auto points:
-        let mut prev_point = self.points().first().unwrap().point;
-        let mut segs_seen = 0;
-        //let insert;
-        for (i, pt) in self.points().iter().enumerate().skip(1) {
-            if pt.is_control() {
-                continue;
-            }
-            if segs_seen == best.1 {
-                let p1 = prev_point.lerp(pt.point, 1.0 / 3.0);
-                let p2 = prev_point.lerp(pt.point, 2.0 / 3.0);
-                self.points_mut().insert(i, SplinePoint::control(p1, true));
-                self.points_mut()
-                    .insert(i + 1, SplinePoint::control(p2, true));
-                break;
-            }
-            segs_seen += 1;
-            prev_point = pt.point;
-        }
+        assert!(best.1 > 0);
+        let start = self.points[best.1 - 1].point;
+        let end = self.points[best.1].point;
+        let p1 = start.lerp(end, 1.0 / 3.0);
+        let p2 = start.lerp(end, 2.0 / 3.0);
+        self.points_mut()
+            .insert(best.1, SplinePoint::control(p1, true));
+        self.points_mut()
+            .insert(best.1 + 1, SplinePoint::control(p2, true));
 
         // and convert the appropriate solver element to be a splineto:
-        let new_el = self.solver.elements().get(best.1 + 1).and_then(|el| {
-            if let Element::LineTo(p1, smooth) = el {
-                Some(Element::SplineTo(None, None, *p1, *smooth))
-            } else {
-                None
-            }
-        });
-        if let Some(new_el) = new_el {
-            self.solver.elements_mut()[best.1 + 1] = new_el;
+        let (el, _) = self.element_containing_idx_mut(best.1);
+        if let Element::LineTo(p1, smooth) = el {
+            *el = Element::SplineTo(None, None, *p1, *smooth);
         } else {
             eprintln!(
                 "failed to update element after line->spline conversion: {:?}",
-                self.solver.elements().get(best.1)
+                el
             );
         }
         self.after_change();
