@@ -161,6 +161,23 @@ impl Path {
         Arc::make_mut(&mut self.points)
     }
 
+    pub fn iter_points<'a>(&'a self) -> impl Iterator<Item = SplinePoint> + 'a {
+        let first = if self.closed {
+            self.first_point()
+        } else {
+            None
+        };
+        first.into_iter().chain(self.points.iter().copied())
+    }
+
+    pub fn first_point(&self) -> Option<SplinePoint> {
+        if self.closed {
+            self.points().last().cloned()
+        } else {
+            self.points().first().cloned()
+        }
+    }
+
     pub fn contains_point(&self, id: PointId) -> bool {
         self.points().iter().any(|pt| pt.id == id)
     }
@@ -204,38 +221,44 @@ impl Path {
     pub fn delete(&mut self, id: PointId) -> Option<PointId> {
         let pos = self.idx_for_point(id).unwrap();
         let pt = self.points[pos];
+        // deleting a control point deletes *both* control points:
         if pt.is_control() {
             self.points_mut().remove(pos);
             if self.points.get(pos).map(|pt| pt.is_control()) == Some(true) {
                 self.points_mut().remove(pos);
             } else {
-                // if the other point in this segment isn't after us, it must be before:
                 self.points_mut().remove(pos - 1);
             }
-            let (el, _) = self.element_containing_idx_mut(pos);
-            if let Element::SplineTo(_, _, point, smooth) = el {
-                *el = Element::LineTo(*point, *smooth);
-            }
         } else {
-            let element_idx = self.idx_for_element_containing_point(pos);
-            let removed = self.solver.elements_mut().remove(element_idx);
-            if element_idx == 0 {
-                if let Some(el) = self.solver.elements_mut().get_mut(0) {
-                    *el = Element::MoveTo(el.endpoint());
-                }
+            let total_on_curve = self.points.iter().filter(|pt| pt.is_on_curve()).count();
+            if total_on_curve < 4 && self.closed {
+                self.points_mut().clear();
+                self.after_change();
+                return None;
             }
+
             self.points_mut().remove(pos);
-            if matches!(removed, Element::SplineTo(..)) {
+            // on-curve at idx 0 can't be a 'spline to'
+            if pos > 0
+                && self
+                    .points
+                    .get(pos - 1)
+                    .map(SplinePoint::is_control)
+                    .unwrap_or(false)
+            {
                 self.points_mut().remove(pos - 1);
                 self.points_mut().remove(pos - 2);
             }
+
             // if removing the first point, and it is followed by a splineto,
             // remove the control points
-            if self.points.get(0).map(|pt| pt.is_control()) == Some(true) {
+            if !self.is_closed() && self.points.get(0).map(|pt| pt.is_control()) == Some(true) {
                 self.points_mut().remove(0);
                 self.points_mut().remove(0);
             }
         }
+
+        self.rebuild_solver();
         self.after_change();
         // select the last point on delete?
         self.points().last().map(|pt| pt.id)
@@ -249,14 +272,14 @@ impl Path {
 
     pub fn close(&mut self, smooth: bool) {
         assert!(!self.closed);
-        let first = self.points.first().cloned().unwrap();
+        let first = self.points_mut().remove(0);
         if smooth {
             self.spline_to(first.point, smooth);
         } else {
             self.line_to(first.point, smooth);
         }
         self.closed = true;
-        self.solver.close();
+        self.rebuild_solver();
         self.after_change();
     }
 
@@ -277,16 +300,7 @@ impl Path {
             point.toggle_type();
         }
 
-        let (elem, idx) = self.element_containing_idx_mut(pos);
-        match elem {
-            Element::MoveTo(pt) | Element::LineTo(pt, _) => *pt = new_point,
-            Element::SplineTo(p1, p2, p3, _) => match idx {
-                0 => *p1 = Some(new_point),
-                1 => *p2 = Some(new_point),
-                2 => *p3 = new_point,
-                _ => unreachable!(),
-            },
-        }
+        self.rebuild_solver();
         self.after_change();
         //FIXME: if we're smooth, and the opposite handle is non-auto, we should
         //update that handle as well?
@@ -297,59 +311,10 @@ impl Path {
         let pos = self
             .idx_for_point(id)
             .expect("selected point always exists");
-        let pt = self.points.get(pos).unwrap();
-
-        let new_auto = match pt.type_ {
-            PointType::Control { auto: true } => Some(pt.point),
-            _ => None,
-        };
 
         self.points_mut().get_mut(pos).unwrap().toggle_type();
-        let (elem, idx) = self.element_containing_idx_mut(pos);
-        match elem {
-            Element::LineTo(_, smooth) => *smooth = !*smooth,
-            Element::SplineTo(p1, p2, _, smooth) => match idx {
-                0 => *p1 = new_auto,
-                1 => *p2 = new_auto,
-                2 => *smooth = !*smooth,
-                _ => (),
-            },
-            _ => (),
-        }
+        self.rebuild_solver();
         self.after_change();
-    }
-
-    /// Given an index into our points array, returns the spline element
-    /// containing that index, as well as the position within that element
-    /// of the point in question.
-    fn element_containing_idx_mut(&mut self, idx: usize) -> (&mut Element, usize) {
-        let mut dist_to_pt = idx;
-        for element in self.solver.elements_mut().iter_mut() {
-            match element {
-                Element::MoveTo(..) | Element::LineTo(..) if dist_to_pt == 0 => {
-                    return (element, 0)
-                }
-                Element::LineTo(..) | Element::MoveTo(..) => dist_to_pt -= 1,
-                Element::SplineTo(..) if (0..=2).contains(&dist_to_pt) => {
-                    return (element, dist_to_pt)
-                }
-                Element::SplineTo(..) => dist_to_pt = dist_to_pt.saturating_sub(3),
-            }
-        }
-        unreachable!();
-    }
-
-    fn idx_for_element_containing_point(&self, idx: usize) -> usize {
-        let mut dist_to_pt = idx;
-        for (i, element) in self.solver.elements().iter().enumerate() {
-            match element {
-                Element::MoveTo(..) | Element::LineTo(..) if dist_to_pt == 0 => return i,
-                Element::SplineTo(..) if (0..=2).contains(&dist_to_pt) => return i,
-                Element::LineTo(..) | Element::MoveTo(..) => dist_to_pt -= 1,
-                Element::SplineTo(..) => dist_to_pt = dist_to_pt.saturating_sub(3),
-            }
-        }
-        unreachable!();
     }
 
     pub fn nearest_segment_distance(&self, point: Point) -> f64 {
@@ -363,8 +328,9 @@ impl Path {
             return;
         }
         let mut best = (f64::MAX, 0);
-        let mut prev_point = self.points().first().map(|pt| pt.point);
-        for (i, pt) in self.points().iter().enumerate().skip(1) {
+        let mut prev_point = self.first_point().map(|pt| pt.point);
+        let n_skip = if self.closed { 0 } else { 1 };
+        for (i, pt) in self.points().iter().enumerate().skip(n_skip) {
             if pt.is_control() {
                 prev_point = None;
                 continue;
@@ -384,9 +350,8 @@ impl Path {
             return;
         }
 
-        // insert two auto points:
-        assert!(best.1 > 0);
-        let start = self.points[best.1 - 1].point;
+        let start_ix = (self.points.len() + best.1 - 1) % self.points.len();
+        let start = self.points[start_ix].point;
         let end = self.points[best.1].point;
         let p1 = start.lerp(end, 1.0 / 3.0);
         let p2 = start.lerp(end, 2.0 / 3.0);
@@ -395,16 +360,7 @@ impl Path {
         self.points_mut()
             .insert(best.1 + 1, SplinePoint::control(p2, true));
 
-        // and convert the appropriate solver element to be a splineto:
-        let (el, _) = self.element_containing_idx_mut(best.1);
-        if let Element::LineTo(p1, smooth) = el {
-            *el = Element::SplineTo(None, None, *p1, *smooth);
-        } else {
-            eprintln!(
-                "failed to update element after line->spline conversion: {:?}",
-                el
-            );
-        }
+        self.rebuild_solver();
         self.after_change();
     }
 
@@ -420,11 +376,24 @@ impl Path {
         self.points.iter().position(|pt| pt.id == id)
     }
 
+    /// rebuilds the solver from scratch, which is easier than trying to
+    /// incrementally update it for some operations.
+    fn rebuild_solver(&mut self) {
+        let mut solver = SplineSpec::new();
+        *solver.elements_mut() = self.iter_spline_elements().collect();
+        if self.closed {
+            solver.close();
+        }
+        self.solver = solver;
+    }
+
+    /// Takes the current solver and updates the position of auto points based
+    /// on their position in the resolved spline.
     fn rebuild_spline(&mut self) {
         let Path { solver, points, .. } = self;
         let spline = solver.solve();
         let points = Arc::make_mut(points);
-        let mut ix = 1;
+        let mut ix = if self.closed { 0 } else { 1 };
         for segment in spline.segments() {
             if segment.is_line() {
                 // I think we do no touchup, here?
@@ -439,7 +408,7 @@ impl Path {
                         );
                         ix += 3;
                     }
-                    None => panic!("missing point at idx {}"),
+                    None => panic!("missing point at idx {}", ix),
                 };
             } else {
                 let p1 = points.get_mut(ix).unwrap();
@@ -459,12 +428,9 @@ impl Path {
         // and then we want to actually update our stored points:
     }
 
-    //fn iter_spline_ops(&self) -> impl Iterator<Item = SplineOp> {
-    //SplineOpIter {
-    //points: self.points.clone(),
-    //ix: 0,
-    //}
-    //}
+    fn iter_spline_elements(&self) -> impl Iterator<Item = Element> {
+        SplineElementIter::new(self.points.clone(), self.closed)
+    }
 
     fn last_segment_is_curve(&self) -> bool {
         let len = self.points.len();
@@ -500,22 +466,41 @@ impl Path {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-enum SplineOp {
-    MoveTo(Point),
-    LineTo(Point, bool),
-    SplineTo(Option<Point>, Option<Point>, Point, bool),
-}
-
-struct SplineOpIter {
+struct SplineElementIter {
     points: Arc<Vec<SplinePoint>>,
+    start: Option<Point>,
+    //started: bool,
     ix: usize,
 }
 
-impl Iterator for SplineOpIter {
-    type Item = SplineOp;
+impl SplineElementIter {
+    fn new(points: Arc<Vec<SplinePoint>>, closed: bool) -> SplineElementIter {
+        let start = if closed {
+            points.last()
+        } else {
+            points.first()
+        };
+        let start = start.map(|pt| pt.point);
+        let ix = if closed { 0 } else { 1 };
+        SplineElementIter {
+            points,
+            start,
+            ix,
+        }
+    }
+
+    fn is_done(&self) -> bool {
+        self.ix == self.points.len()
+    }
+}
+
+impl Iterator for SplineElementIter {
+    type Item = Element;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.ix == self.points.len() {
+        if let Some(start) = self.start.take() {
+            return Some(Element::MoveTo(start));
+        }
+        if self.is_done() {
             return None;
         }
 
@@ -523,11 +508,7 @@ impl Iterator for SplineOpIter {
         match next_pt.type_ {
             PointType::OnCurve { smooth } => {
                 self.ix += 1;
-                if self.ix == 1 {
-                    Some(SplineOp::MoveTo(self.points[self.ix - 1].point))
-                } else {
-                    Some(SplineOp::LineTo(next_pt.point, smooth))
-                }
+                Some(Element::LineTo(next_pt.point, smooth))
             }
             PointType::Control { auto } => {
                 let p1 = if auto { None } else { Some(next_pt.point) };
@@ -537,7 +518,7 @@ impl Iterator for SplineOpIter {
                     .map(|pt| match pt.type_ {
                         PointType::Control { auto: true } => None,
                         PointType::Control { auto: false } => Some(pt.point),
-                        _ => panic!("missing offcurve point"),
+                        _ => panic!("missing offcurve point: ix {} {:#?}", self.ix, &self.points),
                     })
                     .unwrap();
                 let p3 = self.points[self.ix + 2];
@@ -546,7 +527,7 @@ impl Iterator for SplineOpIter {
                     _ => panic!("missing on curve point"),
                 };
                 self.ix += 3;
-                Some(SplineOp::SplineTo(p1, p2, p3.point, smooth))
+                Some(Element::SplineTo(p1, p2, p3.point, smooth))
             }
         }
     }
