@@ -4,5 +4,5 @@
 //! simpler.
 
 fn main() {
-    splinetoy::main()
+    splinetoy::main(None)
 }

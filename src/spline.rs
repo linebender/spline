@@ -141,6 +141,10 @@ impl SplineSpec {
         self.dirty = true;
     }
 
+    pub fn is_closed(&self) -> bool {
+        self.is_closed
+    }
+
     pub fn elements(&self) -> &[Element] {
         &self.elements
     }
