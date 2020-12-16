@@ -155,17 +155,17 @@ impl Widget<EditSession> for Editor {
         for path in data.iter_paths() {
             ctx.stroke(path.bezier(), &Color::BLACK, 1.0);
             if !path.points().is_empty() {
-                let first_selected = data.is_selected(path.points()[0].id);
+                let first_selected = data.is_selected(path.first_point().unwrap().id);
                 draw_first_point(ctx, path, first_selected);
-                let mut last_point = path.points()[0];
-                for pt in path.points().iter().skip(1) {
+                let mut last_point = path.first_point().unwrap();
+                for pt in path.iter_points().skip(1) {
                     let is_selected = data.is_selected(pt.id);
                     if pt.is_on_curve() {
                         draw_on_curve(ctx, pt.point, pt.is_smooth(), is_selected);
                     }
-                    let is_selected = handle_is_selected(*pt, last_point, data);
-                    draw_handle_if_needed(ctx, *pt, last_point, is_selected);
-                    last_point = *pt;
+                    let is_selected = handle_is_selected(pt, last_point, data);
+                    draw_handle_if_needed(ctx, pt, last_point, is_selected);
+                    last_point = pt;
                 }
 
                 if let Some(pt) = path.trailing() {

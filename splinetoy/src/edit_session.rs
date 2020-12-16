@@ -85,7 +85,7 @@ impl EditSession {
         let closest = self.iter_paths().enumerate().fold(None, |acc, (i, path)| {
             let dist = path.nearest_segment_distance(point);
             match acc {
-                Some((cur_idx, cur_dist)) if cur_dist > dist => Some((cur_idx, cur_dist)),
+                Some((cur_idx, cur_dist)) if cur_dist < dist => Some((cur_idx, cur_dist)),
                 _ if dist < MIN_CLICK_DISTANCE => Some((i, dist)),
                 _ => None,
             }
