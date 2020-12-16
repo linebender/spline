@@ -126,6 +126,34 @@ impl Path {
         //Path::debug()
     }
 
+    pub fn from_spline(spline: SplineSpec) -> Path {
+        let mut points = Vec::with_capacity(spline.elements().len() * 3);
+        for el in spline.elements() {
+            match el {
+                Element::MoveTo(pt) if !spline.is_closed() => {
+                    points.push(SplinePoint::on_curve(*pt, false))
+                }
+                Element::MoveTo(_) => (),
+                Element::LineTo(pt, smooth) => points.push(SplinePoint::on_curve(*pt, *smooth)),
+                Element::SplineTo(p1, p2, p3, smooth) => {
+                    let pp1 = p1.unwrap_or(*p3);
+                    let pp2 = p2.unwrap_or(*p3);
+                    points.push(SplinePoint::control(pp1, p1.is_none()));
+                    points.push(SplinePoint::control(pp2, p2.is_none()));
+                    points.push(SplinePoint::on_curve(*p3, *smooth));
+                }
+            }
+        }
+        let mut path = Path {
+            points: Arc::new(points),
+            closed: spline.is_closed(),
+            solver: spline,
+            ..Default::default()
+        };
+        path.after_change();
+        path
+    }
+
     //fn debug() -> Path {
     //let mut path = Path::default();
     //path.move_to((100., 100.), false);

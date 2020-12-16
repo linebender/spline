@@ -24,6 +24,17 @@ impl EditSession {
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub fn from_base64_json(b64: String) -> Option<EditSession> {
+        let json = base64::decode(b64.trim_start_matches('?')).ok()?;
+        let paths: Vec<spline::SplineSpec> = serde_json::from_slice(&json).ok()?;
+        let paths = Arc::new(paths.into_iter().map(Path::from_spline).collect());
+        Some(EditSession {
+            paths,
+            ..EditSession::new()
+        })
+    }
+
     pub fn active_path(&self) -> &Path {
         &self.path
     }

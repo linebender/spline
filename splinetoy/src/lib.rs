@@ -7,8 +7,6 @@ mod select;
 mod toolbar;
 mod tools;
 
-use wasm_bindgen::prelude::*;
-
 use druid::{
     commands, platform_menus, AppLauncher, FileDialogOptions, FileSpec, LocalizedString, MenuDesc,
     MenuItem, SysMods, WindowDesc,
@@ -17,14 +15,21 @@ use druid::{
 use edit_session::EditSession;
 use editor::Editor;
 
-#[wasm_bindgen]
+#[cfg(target_arch = "wasm32")]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn wasm_main() {
+    use wasm_bindgen::prelude::*;
+    let request_path = web_sys::window().and_then(|win| win.location().search().ok());
+    web_sys::console::log_1(&format!("hi from in here: {:?}", request_path).into());
+    let data = request_path.and_then(EditSession::from_base64_json);
+    web_sys::console::log_1(&format!("got data: {:?}", data).into());
+
     // This hook is necessary to get panic messages in the console
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    main()
+    main(data)
 }
 
-pub fn main() {
+pub fn main(data: Option<EditSession>) {
     // describe the main window
     let main_window = WindowDesc::new(|| Editor::new())
         .title("Spline Toy")
@@ -33,7 +38,7 @@ pub fn main() {
         .window_size((600.0, 800.0));
 
     // create the initial app state
-    let initial_state = EditSession::new();
+    let initial_state = data.unwrap_or(EditSession::new());
 
     // start the application
     AppLauncher::with_window(main_window)
