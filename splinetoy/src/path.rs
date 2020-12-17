@@ -253,7 +253,7 @@ impl Path {
 
         for (i, pt) in self.points().iter().skip(skip_n).enumerate() {
             if segs_seen == seg_idx {
-                pt_idx = i;
+                pt_idx = i + skip_n;
                 break;
             }
             if pt.is_on_curve() {
@@ -265,7 +265,7 @@ impl Path {
         let is_smooth = self
             .points()
             .iter()
-            .skip(skip_n + pt_idx)
+            .skip(pt_idx)
             .skip_while(|pt| pt.is_control())
             .next()
             .map(SplinePoint::is_smooth)

@@ -3,7 +3,7 @@ use druid::{
     kurbo::{Circle, CubicBez, Line, PathSeg, Point, Vec2},
     piet::StrokeStyle,
     widget::{prelude::*, Label},
-    Color, Data, Env, Rect, Widget, WidgetPod,
+    Color, Data, Env, KbKey, Rect, Widget, WidgetPod,
 };
 
 use crate::edit_session::EditSession;
@@ -23,6 +23,7 @@ pub struct Editor {
     toolbar: WidgetPod<(), FloatingPanel<Toolbar>>,
     points_label: Label<()>,
     mouse: Mouse,
+    preview: bool,
     tool: Box<dyn Tool>,
     label_size: Size,
 }
@@ -36,6 +37,7 @@ impl Editor {
             toolbar: WidgetPod::new(FloatingPanel::new(Toolbar::default())),
             label_size: Size::ZERO,
             mouse: Mouse::default(),
+            preview: false,
             tool: Box::new(Pen::default()),
         }
     }
@@ -96,9 +98,17 @@ impl Widget<EditSession> for Editor {
             Event::MouseMove(m) => self.send_mouse(ctx, TaggedEvent::Moved(m.clone()), data),
             Event::MouseDown(m) => self.send_mouse(ctx, TaggedEvent::Down(m.clone()), data),
             Event::KeyDown(k) => {
+                if k.key == KbKey::Character(" ".into()) {
+                    self.preview = true;
+                    ctx.request_paint();
+                }
                 self.tool.key_down(k, ctx, data);
             }
             Event::KeyUp(k) => {
+                if k.key == KbKey::Character(" ".into()) {
+                    self.preview = false;
+                    ctx.request_paint();
+                }
                 self.tool.key_up(k, ctx, data);
             }
             Event::Command(cmd) if cmd.is(commands::SAVE_FILE) => {
@@ -151,6 +161,10 @@ impl Widget<EditSession> for Editor {
 
     fn paint(&mut self, ctx: &mut PaintCtx, data: &EditSession, env: &Env) {
         ctx.clear(Color::WHITE);
+        if self.preview {
+            ctx.fill(data.bezier(), &Color::BLACK);
+            return;
+        }
 
         for path in data.iter_paths() {
             ctx.stroke(path.bezier(), &Color::BLACK, 1.0);
