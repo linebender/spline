@@ -469,7 +469,6 @@ impl Path {
 struct SplineElementIter {
     points: Arc<Vec<SplinePoint>>,
     start: Option<Point>,
-    //started: bool,
     ix: usize,
 }
 
@@ -482,15 +481,11 @@ impl SplineElementIter {
         };
         let start = start.map(|pt| pt.point);
         let ix = if closed { 0 } else { 1 };
-        SplineElementIter {
-            points,
-            start,
-            ix,
-        }
+        SplineElementIter { points, start, ix }
     }
 
     fn is_done(&self) -> bool {
-        self.ix == self.points.len()
+        self.points.is_empty() || self.ix == self.points.len()
     }
 }
 
