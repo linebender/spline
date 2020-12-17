@@ -67,13 +67,9 @@ impl Editor {
     #[cfg(target_arch = "wasm32")]
     fn save_contents(&self, data: &EditSession) {
         let b64 = data.to_base64_bincode();
-        web_sys::console::log_1(&format!("b64 len = {}", b64.len()).into());
 
         if let Some(window) = web_sys::window() {
-            window.location().set_search(&b64);
-            web_sys::console::log_1(&format!("set search '{}'", b64).into());
-        } else {
-            web_sys::console::log_1(&format!("failed to get window handle").into());
+            let _ = window.location().set_search(&b64);
         }
     }
 }
