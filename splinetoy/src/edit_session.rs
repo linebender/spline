@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use druid::kurbo::BezPath;
 use druid::{Data, Point, Vec2};
 
 use crate::path::{Path, PointId, SplinePoint};
@@ -29,6 +30,13 @@ impl EditSession {
 
     pub fn iter_paths(&self) -> impl Iterator<Item = &Path> {
         Some(&self.path).into_iter().chain(self.paths.iter())
+    }
+
+    pub fn bezier(&self) -> BezPath {
+        self.iter_paths()
+            .flat_map(|p| p.bezier().elements())
+            .copied()
+            .collect()
     }
 
     pub fn add_point(&mut self, point: Point, smooth: bool) {
