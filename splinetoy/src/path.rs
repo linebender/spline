@@ -462,16 +462,21 @@ impl Path {
         let mut ix = if self.closed { 0 } else { 1 };
         for segment in spline.segments() {
             if segment.is_line() {
+                let p1 = segment.p0.lerp(segment.p3, 1.0 / 3.0);
+                let p2 = segment.p0.lerp(segment.p3, 2.0 / 3.0);
                 // I think we do no touchup, here?
                 match points.get(ix).map(|pt| pt.type_) {
                     Some(PointType::OnCurve { .. }) => {
                         // expected case
                         ix += 1;
                     }
+                    // this generally means there is a spline to with two
+                    // auto points and line segments on either end; we want
+                    // to ensure the control points are on the line.
                     Some(PointType::Control { .. }) => {
-                        eprintln!(
-                            "segment is line but control points exist, we should delete them?"
-                        );
+                        assert!(points.get(ix + 1).unwrap().is_control());
+                        points.get_mut(ix).unwrap().point = p1;
+                        points.get_mut(ix + 1).unwrap().point = p2;
                         ix += 3;
                     }
                     None => panic!("missing point at idx {}", ix),
