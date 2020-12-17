@@ -42,6 +42,15 @@ impl EditSession {
             self.path.close(smooth);
             let path = std::mem::replace(&mut self.path, Path::new());
             Arc::make_mut(&mut self.paths).push(path);
+        } else if let Some((idx, _)) = self.nearest_segment_for_point(point) {
+            let sel = match idx {
+                0 => self.path.insert_point_on_path(point),
+                n => Arc::make_mut(&mut self.paths)
+                    .get_mut(n - 1)
+                    .unwrap()
+                    .insert_point_on_path(point),
+            };
+            self.selection = Some(sel);
         } else {
             let sel = self.path.add_point(point, smooth);
             self.selection = Some(sel);
@@ -85,14 +94,7 @@ impl EditSession {
     }
 
     pub fn maybe_convert_line_to_spline(&mut self, point: Point) {
-        let closest = self.iter_paths().enumerate().fold(None, |acc, (i, path)| {
-            let dist = path.nearest_segment_distance(point);
-            match acc {
-                Some((cur_idx, cur_dist)) if cur_dist < dist => Some((cur_idx, cur_dist)),
-                _ if dist < MIN_CLICK_DISTANCE => Some((i, dist)),
-                _ => None,
-            }
-        });
+        let closest = self.nearest_segment_for_point(point);
         match closest {
             Some((0, _)) => self
                 .path
@@ -103,6 +105,18 @@ impl EditSession {
                 .maybe_convert_line_to_spline(point, MIN_CLICK_DISTANCE),
             _ => (),
         }
+    }
+
+    /// returns a path index and a distance, where '0' is the active path
+    fn nearest_segment_for_point(&self, point: Point) -> Option<(usize, f64)> {
+        self.iter_paths().enumerate().fold(None, |acc, (i, path)| {
+            let dist = path.nearest_segment_distance(point);
+            match acc {
+                Some((cur_idx, cur_dist)) if cur_dist < dist => Some((cur_idx, cur_dist)),
+                _ if dist < MIN_CLICK_DISTANCE => Some((i, dist)),
+                _ => None,
+            }
+        })
     }
 
     pub fn toggle_selected_point_type(&mut self) {

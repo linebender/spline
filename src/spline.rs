@@ -608,4 +608,12 @@ impl Segment {
             }
         }
     }
+
+    /// Return a [`BezPath`] representing this segment.
+    pub fn to_bezier(&self) -> BezPath {
+        let mut path = BezPath::new();
+        path.move_to(self.p0);
+        self.render(&mut path);
+        path
+    }
 }

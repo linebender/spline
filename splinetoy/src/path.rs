@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use druid::kurbo::{BezPath, Line, ParamCurveNearest};
+use druid::kurbo::{BezPath, Line, ParamCurve, ParamCurveNearest};
 use druid::{Data, Point, Vec2};
 use spline::{Element, SplineSpec};
 
@@ -216,6 +216,72 @@ impl Path {
         self.points_mut().push(SplinePoint::control(p2, true));
         self.points_mut().push(SplinePoint::on_curve(p3, smooth));
         self.solver.spline_to(None, None, p3, smooth);
+    }
+
+    /// Given a click position, find the closest point on the spline
+    /// to that position and add a point there.
+    pub fn insert_point_on_path(&mut self, pt: Point) -> PointId {
+        let spline = self.solver.solve().into_owned();
+        let seg_beziers = spline
+            .segments()
+            .iter()
+            .map(|seg| seg.to_bezier())
+            .collect::<Vec<_>>();
+
+        let mut closest = f64::MAX;
+        let mut seg_idx = 0;
+        let mut new_pt = Point::ZERO;
+
+        for (i, bez) in seg_beziers.iter().enumerate() {
+            let (b_closest, b_point) = bez.segments().fold((f64::MAX, Point::ZERO), |acc, seg| {
+                let (t, dist) = seg.nearest(pt, 0.1);
+                if dist < acc.0 {
+                    (dist, seg.eval(t))
+                } else {
+                    acc
+                }
+            });
+            if b_closest < closest {
+                closest = b_closest;
+                new_pt = b_point;
+                seg_idx = i;
+            }
+        }
+        let skip_n = if self.closed { 0 } else { 1 };
+        let mut pt_idx = 0;
+        let mut segs_seen = 0;
+
+        for (i, pt) in self.points().iter().skip(skip_n).enumerate() {
+            if segs_seen == seg_idx {
+                pt_idx = i;
+                break;
+            }
+            if pt.is_on_curve() {
+                segs_seen += 1;
+            }
+        }
+
+        let is_line = spline.segments()[seg_idx].is_line();
+        let is_smooth = self
+            .points()
+            .iter()
+            .skip(skip_n + pt_idx)
+            .skip_while(|pt| pt.is_control())
+            .next()
+            .map(SplinePoint::is_smooth)
+            .unwrap();
+
+        let new_on_curve = SplinePoint::on_curve(new_pt, is_smooth);
+        self.points_mut().insert(pt_idx, new_on_curve);
+        if !is_line {
+            self.points_mut()
+                .insert(pt_idx, SplinePoint::control(new_pt, true));
+            self.points_mut()
+                .insert(pt_idx, SplinePoint::control(new_pt, true));
+        }
+        self.rebuild_solver();
+        self.after_change();
+        new_on_curve.id
     }
 
     pub fn delete(&mut self, id: PointId) -> Option<PointId> {
