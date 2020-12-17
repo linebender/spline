@@ -16,13 +16,13 @@ use edit_session::EditSession;
 use editor::Editor;
 
 #[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn wasm_main() {
-    use wasm_bindgen::prelude::*;
     let request_path = web_sys::window().and_then(|win| win.location().search().ok());
-    web_sys::console::log_1(&format!("hi from in here: {:?}", request_path).into());
-    let data = request_path.and_then(EditSession::from_base64_json);
-    web_sys::console::log_1(&format!("got data: {:?}", data).into());
+    let data = request_path.and_then(EditSession::from_base64_bincode);
 
     // This hook is necessary to get panic messages in the console
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));

@@ -25,14 +25,34 @@ impl EditSession {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn from_base64_json(b64: String) -> Option<EditSession> {
-        let json = base64::decode(b64.trim_start_matches('?')).ok()?;
-        let paths: Vec<spline::SplineSpec> = serde_json::from_slice(&json).ok()?;
+    pub fn from_base64_bincode(b64: String) -> Option<EditSession> {
+        let bytes = base64::decode(b64.trim_start_matches('?')).ok()?;
+        let mut paths: Vec<spline::SplineSpec> = bincode::deserialize(&bytes).ok()?;
+
+        let path = if paths.last().map(|path| !path.is_closed()).unwrap_or(false) {
+            Path::from_spline(paths.pop().unwrap())
+        } else {
+            Path::new()
+        };
         let paths = Arc::new(paths.into_iter().map(Path::from_spline).collect());
+        let selection = path.last_point().map(|pt| pt.id);
         Some(EditSession {
+            path,
             paths,
-            ..EditSession::new()
+            selection,
         })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn to_base64_bincode(&self) -> String {
+        let paths = self
+            .paths
+            .iter()
+            .chain(Some(&self.path).into_iter())
+            .map(Path::solver)
+            .collect::<Vec<_>>();
+        let bytes = bincode::serialize(&paths).unwrap();
+        base64::encode(&bytes)
     }
 
     pub fn active_path(&self) -> &Path {

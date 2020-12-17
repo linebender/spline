@@ -206,6 +206,10 @@ impl Path {
         }
     }
 
+    pub fn last_point(&self) -> Option<SplinePoint> {
+        self.points.last().cloned()
+    }
+
     pub fn contains_point(&self, id: PointId) -> bool {
         self.points().iter().any(|pt| pt.id == id)
     }

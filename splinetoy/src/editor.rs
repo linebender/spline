@@ -3,7 +3,7 @@ use druid::{
     kurbo::{Circle, CubicBez, Line, PathSeg, Point, Vec2},
     piet::StrokeStyle,
     widget::prelude::*,
-    Color, Data, Env, KbKey, Rect, Widget, WidgetPod,
+    Color, Data, Env, HotKey, KbKey, Rect, SysMods, Widget, WidgetPod,
 };
 
 use crate::edit_session::EditSession;
@@ -60,6 +60,22 @@ impl Editor {
             self.tool.mouse_event(event, &mut self.mouse, ctx, data);
         }
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn save_contents(&self, _: &EditSession) {}
+
+    #[cfg(target_arch = "wasm32")]
+    fn save_contents(&self, data: &EditSession) {
+        let b64 = data.to_base64_bincode();
+        web_sys::console::log_1(&format!("b64 len = {}", b64.len()).into());
+
+        if let Some(window) = web_sys::window() {
+            window.location().set_search(&b64);
+            web_sys::console::log_1(&format!("set search '{}'", b64).into());
+        } else {
+            web_sys::console::log_1(&format!("failed to get window handle").into());
+        }
+    }
 }
 
 impl Widget<EditSession> for Editor {
@@ -70,6 +86,8 @@ impl Widget<EditSession> for Editor {
                 ctx.submit_command(cmd);
                 ctx.set_handled();
                 return;
+            } else if HotKey::new(SysMods::Shift, "S").matches(k) {
+                self.save_contents(data);
             }
         }
 
