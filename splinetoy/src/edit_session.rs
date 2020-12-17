@@ -56,6 +56,9 @@ impl EditSession {
         if let Some(sel) = self.selection.take() {
             self.selection = self.path_containing_pt_mut(sel).delete(sel);
         }
+        if self.selection.is_none() {
+            Arc::make_mut(&mut self.paths).retain(|path| !path.points().is_empty())
+        }
     }
 
     pub fn nudge_selection(&mut self, delta: Vec2) {
