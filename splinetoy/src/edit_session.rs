@@ -40,6 +40,12 @@ impl EditSession {
     }
 
     pub fn add_point(&mut self, point: Point, smooth: bool) {
+        // if the current path is closed we need to add a new path
+        if self.path.is_closed() {
+            let path = std::mem::replace(&mut self.path, Path::new());
+            Arc::make_mut(&mut self.paths).push(path);
+        }
+
         if self
             .path
             .points()
@@ -48,8 +54,6 @@ impl EditSession {
             .unwrap_or(false)
         {
             self.path.close(smooth);
-            let path = std::mem::replace(&mut self.path, Path::new());
-            Arc::make_mut(&mut self.paths).push(path);
         } else if let Some((idx, _)) = self.nearest_segment_for_point(point) {
             let sel = match idx {
                 0 => self.path.insert_point_on_path(point),
