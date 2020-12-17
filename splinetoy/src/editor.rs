@@ -2,7 +2,7 @@ use druid::{
     commands,
     kurbo::{Circle, CubicBez, Line, PathSeg, Point, Vec2},
     piet::StrokeStyle,
-    widget::{prelude::*, Label},
+    widget::prelude::*,
     Color, Data, Env, KbKey, Rect, Widget, WidgetPod,
 };
 
@@ -21,24 +21,18 @@ const FLOATING_PANEL_PADDING: f64 = 20.0;
 
 pub struct Editor {
     toolbar: WidgetPod<(), FloatingPanel<Toolbar>>,
-    points_label: Label<()>,
     mouse: Mouse,
-    preview: bool,
     tool: Box<dyn Tool>,
-    label_size: Size,
+    preview: bool,
 }
 
 impl Editor {
     pub fn new() -> Editor {
         Editor {
-            points_label: Label::new("")
-                .with_text_size(12.0)
-                .with_text_color(Color::grey(0.3)),
             toolbar: WidgetPod::new(FloatingPanel::new(Toolbar::default())),
-            label_size: Size::ZERO,
             mouse: Mouse::default(),
-            preview: false,
             tool: Box::new(Pen::default()),
+            preview: false,
         }
     }
 
@@ -121,11 +115,9 @@ impl Widget<EditSession> for Editor {
             }
             _ => (),
         }
-        self.points_label.event(ctx, event, &mut (), env);
     }
 
     fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, _: &EditSession, env: &Env) {
-        self.points_label.lifecycle(ctx, event, &(), env);
         self.toolbar.lifecycle(ctx, event, &(), env);
     }
 
@@ -139,7 +131,6 @@ impl Widget<EditSession> for Editor {
         if !old_data.same(data) {
             ctx.request_layout();
         }
-        self.points_label.update(ctx, &(), &(), env);
         self.toolbar.update(ctx, &(), env);
     }
 
@@ -155,7 +146,6 @@ impl Widget<EditSession> for Editor {
         let orig = (FLOATING_PANEL_PADDING, FLOATING_PANEL_PADDING);
         self.toolbar
             .set_layout_rect(ctx, &(), env, Rect::from_origin_size(orig, size));
-        self.label_size = self.points_label.layout(ctx, &bc.loosen(), &(), env);
         bc.max()
     }
 
@@ -188,8 +178,6 @@ impl Widget<EditSession> for Editor {
             }
         }
 
-        let origin = (10.0, ctx.size().height - self.label_size.height - 10.0);
-        self.points_label.draw_at(ctx, origin);
         self.toolbar.paint(ctx, &(), env);
     }
 }
