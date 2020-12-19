@@ -24,44 +24,18 @@ impl EditSession {
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
-    pub fn from_base64_bincode(b64: String) -> Option<EditSession> {
-        let b64 = b64.trim_start_matches('?');
-        let brotli_bytes = base64::decode(b64).ok()?;
-        // decode
-        let mut r = flate2::read::ZlibDecoder::new(brotli_bytes.as_slice());
-        let mut paths: Vec<spline::SplineSpec> = bincode::deserialize_from(&mut r).ok()?;
-        // last path is the possibly active path
-        let path = if paths.last().map(|path| !path.is_closed()).unwrap_or(false) {
-            Path::from_spline(paths.pop().unwrap())
+    pub fn from_saved(mut paths: Vec<Path>, sel: Option<PointId>) -> Self {
+        let path = if paths.last().map(Path::is_closed).unwrap_or(false) {
+            paths.pop().unwrap()
         } else {
             Path::new()
         };
-        let paths = Arc::new(paths.into_iter().map(Path::from_spline).collect());
-        let selection = path.last_point().map(|pt| pt.id);
-        Some(EditSession {
+        let selection = sel.or_else(|| path.last_point().map(|pt| pt.id));
+        EditSession {
             path,
-            paths,
+            paths: Arc::new(paths),
             selection,
-        })
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub fn to_base64_bincode(&self) -> String {
-        use flate2::{write::ZlibEncoder, Compression};
-
-        let paths = self
-            .paths
-            .iter()
-            .chain(Some(&self.path).into_iter())
-            .map(Path::solver)
-            .collect::<Vec<_>>();
-        let b64_writer = base64::write::EncoderStringWriter::new(base64::STANDARD);
-        let mut encoder = ZlibEncoder::new(b64_writer, Compression::default());
-        bincode::serialize_into(&mut encoder, &paths).unwrap();
-        let b64 = encoder.finish().unwrap().into_inner();
-        web_sys::console::log_1(&format!("b64 len {}", b64.len()).into());
-        b64
+        }
     }
 
     pub fn active_path(&self) -> &Path {
@@ -139,6 +113,10 @@ impl EditSession {
                 .find(|pt| pt.id == id)
                 .copied()
         })
+    }
+
+    pub fn selection(&self) -> Option<PointId> {
+        self.selection
     }
 
     pub fn set_selection(&mut self, selection: Option<PointId>) {

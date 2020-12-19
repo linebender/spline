@@ -4,8 +4,6 @@ use crate::mouse::{Drag, Mouse, MouseDelegate, TaggedEvent};
 use crate::tools::{self, EditType, Tool, ToolId};
 use crate::{edit_session::EditSession, path::PointId};
 
-pub const TOOL_NAME: &str = "Select";
-
 /// A set of states that are possible while handling a mouse drag.
 #[derive(Debug, Clone)]
 enum DragState {
@@ -96,7 +94,7 @@ impl Tool for Select {
     }
 
     fn name(&self) -> ToolId {
-        "Select"
+        ToolId::Select
     }
 }
 

@@ -2,16 +2,19 @@
 
 use druid::{kurbo::Point, Cursor};
 use druid::{Env, EventCtx, KeyEvent, PaintCtx};
+use serde::{Deserialize, Serialize};
 
 use crate::edit_session::EditSession;
 use crate::mouse::{Mouse, TaggedEvent};
-//use crate::path::Path;
 use crate::pen::Pen;
 use crate::select::Select;
 
 /// Something to pass around instead of a Box<dyn Tool>
-pub type ToolId = &'static str;
-//pub type EditSession = Path;
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ToolId {
+    Select,
+    Pen,
+}
 
 /// Types of state modifications, for the purposes of undo.
 ///
@@ -102,7 +105,7 @@ pub trait Tool {
 
     fn preferred_cursor(&self) -> Cursor {
         match self.name() {
-            crate::pen::TOOL_NAME => Cursor::Crosshair,
+            ToolId::Pen => Cursor::Crosshair,
             _ => Cursor::Arrow,
         }
     }
@@ -112,13 +115,13 @@ pub trait Tool {
 pub fn tool_for_id(id: ToolId) -> Option<Box<dyn Tool>> {
     match id {
         //"Preview" => Some(Box::new(Preview::default())),
-        crate::pen::TOOL_NAME => Some(Box::new(Pen::default())),
-        crate::select::TOOL_NAME => Some(Box::new(Select::default())),
+        ToolId::Pen => Some(Box::new(Pen::default())),
+        ToolId::Select => Some(Box::new(Select::default())),
         //"Rectangle" => Some(Box::new(Rectangle::default())),
         //"Ellipse" => Some(Box::new(Ellipse::default())),
         //"Knife" => Some(Box::new(Knife::default())),
         //"Measure" => Some(Box::new(Measure::default())),
-        _ => None,
+        //_ => None,
     }
 }
 
@@ -144,5 +147,11 @@ pub(crate) fn axis_locked_point(point: Point, prev: Point) -> Point {
         Point::new(point.x, prev.y)
     } else {
         Point::new(prev.x, point.y)
+    }
+}
+
+impl Default for ToolId {
+    fn default() -> Self {
+        ToolId::Pen
     }
 }

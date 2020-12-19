@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use druid::kurbo::{BezPath, Line, ParamCurve, ParamCurveNearest};
 use druid::{Data, Point, Vec2};
 use spline::{Element, SplineSpec};
@@ -14,7 +16,7 @@ pub struct Path {
     closed: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Data)]
+#[derive(Debug, Clone, Serialize, Deserialize, Copy, PartialEq, Data)]
 pub struct PointId {
     id: usize,
 }
