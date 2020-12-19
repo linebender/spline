@@ -212,13 +212,13 @@ impl<T: Data, W: Widget<T>> Widget<T> for FloatingPanel<W> {
 impl Default for Toolbar {
     fn default() -> Self {
         let select = ToolbarItem {
-            name: "Select",
+            name: ToolId::Select,
             icon: constrain_path(select_path()),
             hotkey: HotKey::new(None, "v"),
         };
 
         let pen = ToolbarItem {
-            name: "Pen",
+            name: ToolId::Pen,
             icon: constrain_path(pen_path()),
             hotkey: HotKey::new(None, "p"),
         };

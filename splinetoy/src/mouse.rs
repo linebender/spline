@@ -22,7 +22,7 @@
 //! method on your delegate will be called.
 //!
 //! # Example
-//! ```
+//! ```no_compile
 //! use runebender::mouse::{Mouse, MouseDelegate};
 //! use druid::shell::window::{MouseEvent, MouseButton, KeyModifiers};
 //! use druid::kurbo::Point;

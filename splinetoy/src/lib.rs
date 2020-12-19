@@ -3,6 +3,7 @@ mod editor;
 mod mouse;
 mod path;
 mod pen;
+mod save;
 mod select;
 mod toolbar;
 mod tools;
@@ -14,6 +15,8 @@ use druid::{
 
 use edit_session::EditSession;
 use editor::Editor;
+use save::SessionState;
+use tools::ToolId;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -21,28 +24,35 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn wasm_main() {
-    let request_path = web_sys::window().and_then(|win| win.location().search().ok());
-    let data = request_path.and_then(EditSession::from_base64_bincode);
-
     // This hook is necessary to get panic messages in the console
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    main(data)
+    let saved_session = match SessionState::init_from_current_url() {
+        Ok(session) => Some(session),
+        Err(err) => {
+            web_sys::console::log_1(&format!("{}", err).into());
+            None
+        }
+    };
+    main(saved_session)
 }
 
-pub fn main(data: Option<EditSession>) {
+pub fn main(saved: Option<SessionState>) {
     // describe the main window
-    let main_window = WindowDesc::new(|| Editor::new())
+    let saved = saved.unwrap_or_default();
+    let tool = saved.tool;
+    let preview_only = saved.preview_only;
+    let main_window = WindowDesc::new(move || make_editor(tool, preview_only))
         .title("Spline Toy")
         .menu(make_menu())
         .with_min_size((200., 200.))
         .window_size((600.0, 800.0));
 
     // create the initial app state
-    let initial_state = data.unwrap_or(EditSession::new());
+    let initial_data = saved.into_edit_session();
 
     // start the application
     AppLauncher::with_window(main_window)
-        .launch(initial_state)
+        .launch(initial_data)
         .expect("Failed to launch application");
 }
 
@@ -65,6 +75,10 @@ fn file_menu() -> MenuDesc<EditSession> {
         .append_separator()
         .append(platform_menus::mac::file::page_setup().disabled())
         .append(platform_menus::mac::file::print().disabled())
+}
+
+fn make_editor(tool: ToolId, preview_only: bool) -> Editor {
+    Editor::from_saved(tool, preview_only)
 }
 
 /// The main window/app menu.

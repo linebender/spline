@@ -5,11 +5,8 @@ use druid::{EventCtx, KbKey, KeyEvent, MouseEvent};
 use crate::{
     edit_session::EditSession,
     mouse::{Drag, Mouse, MouseDelegate, TaggedEvent},
-    //path::Path,
     tools::{self, EditType, Tool, ToolId},
 };
-
-pub const TOOL_NAME: &str = "Pen";
 
 /// The state of the pen.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -75,6 +72,6 @@ impl Tool for Pen {
     }
 
     fn name(&self) -> ToolId {
-        TOOL_NAME
+        ToolId::Pen
     }
 }

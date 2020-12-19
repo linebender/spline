@@ -24,6 +24,7 @@ pub struct Editor {
     mouse: Mouse,
     tool: Box<dyn Tool>,
     preview: bool,
+    preview_only: bool,
 }
 
 impl Editor {
@@ -33,6 +34,16 @@ impl Editor {
             mouse: Mouse::default(),
             tool: Box::new(Pen::default()),
             preview: false,
+            preview_only: false,
+        }
+    }
+
+    pub fn from_saved(tool: ToolId, preview_only: bool) -> Editor {
+        let tool = crate::tools::tool_for_id(tool).unwrap();
+        Editor {
+            tool,
+            preview_only,
+            ..Editor::new()
         }
     }
 
@@ -66,41 +77,49 @@ impl Editor {
 
     #[cfg(target_arch = "wasm32")]
     fn save_contents(&self, data: &EditSession) {
-        let b64 = data.to_base64_bincode();
-
-        if let Some(window) = web_sys::window() {
-            let _ = window.location().set_search(&b64);
-        }
+        let state = crate::save::SessionState {
+            paths: data.iter_paths().map(Path::solver).cloned().collect(),
+            selection: data.selection(),
+            tool: self.tool.name(),
+            preview_only: self.preview_only,
+        };
+        state.save_to_url();
     }
 }
 
 impl Widget<EditSession> for Editor {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut EditSession, env: &Env) {
         if let Event::KeyDown(k) = event {
-            if let Some(new_tool) = self.toolbar.widget().inner().tool_for_keypress(k) {
-                let cmd = crate::toolbar::SET_TOOL.with(new_tool);
-                ctx.submit_command(cmd);
-                ctx.set_handled();
-                return;
-            } else if HotKey::new(SysMods::Shift, "S").matches(k) {
+            if !self.preview_only {
+                if let Some(new_tool) = self.toolbar.widget().inner().tool_for_keypress(k) {
+                    let cmd = crate::toolbar::SET_TOOL.with(new_tool);
+                    ctx.submit_command(cmd);
+                    ctx.set_handled();
+                    return;
+                }
+            }
+            if HotKey::new(SysMods::Shift, "S").matches(k) {
                 self.save_contents(data);
             }
         }
 
-        self.toolbar.event(ctx, event, &mut (), env);
+        if !self.preview_only {
+            self.toolbar.event(ctx, event, &mut (), env);
+        }
+
         if ctx.is_handled() {
             return;
         }
         match event {
             Event::WindowConnected => {
                 ctx.set_cursor(&self.tool.preferred_cursor());
-                ctx.submit_command(crate::toolbar::SET_TOOL.with(crate::pen::TOOL_NAME));
+                ctx.submit_command(crate::toolbar::SET_TOOL.with(self.tool.name()));
                 ctx.request_update();
                 ctx.request_focus();
             }
             Event::Command(cmd) if cmd.is(crate::toolbar::SET_TOOL) => {
                 let tool = cmd.get_unchecked(crate::toolbar::SET_TOOL);
-                self.set_tool(ctx, tool);
+                self.set_tool(ctx, *tool);
             }
             Event::MouseUp(m) => self.send_mouse(ctx, TaggedEvent::Up(m.clone()), data),
             Event::MouseMove(m) => self.send_mouse(ctx, TaggedEvent::Moved(m.clone()), data),
@@ -131,7 +150,9 @@ impl Widget<EditSession> for Editor {
     }
 
     fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, _: &EditSession, env: &Env) {
-        self.toolbar.lifecycle(ctx, event, &(), env);
+        if !self.preview_only {
+            self.toolbar.lifecycle(ctx, event, &(), env);
+        }
     }
 
     fn update(
@@ -144,7 +165,9 @@ impl Widget<EditSession> for Editor {
         if !old_data.same(data) {
             ctx.request_layout();
         }
-        self.toolbar.update(ctx, &(), env);
+        if !self.preview_only {
+            self.toolbar.update(ctx, &(), env);
+        }
     }
 
     fn layout(
@@ -154,11 +177,13 @@ impl Widget<EditSession> for Editor {
         _: &EditSession,
         env: &Env,
     ) -> Size {
-        let child_bc = bc.loosen();
-        let size = self.toolbar.layout(ctx, &child_bc, &(), env);
-        let orig = (FLOATING_PANEL_PADDING, FLOATING_PANEL_PADDING);
-        self.toolbar
-            .set_layout_rect(ctx, &(), env, Rect::from_origin_size(orig, size));
+        if !self.preview_only {
+            let child_bc = bc.loosen();
+            let size = self.toolbar.layout(ctx, &child_bc, &(), env);
+            let orig = (FLOATING_PANEL_PADDING, FLOATING_PANEL_PADDING);
+            self.toolbar
+                .set_layout_rect(ctx, &(), env, Rect::from_origin_size(orig, size));
+        }
         bc.max()
     }
 
@@ -191,7 +216,9 @@ impl Widget<EditSession> for Editor {
             }
         }
 
-        self.toolbar.paint(ctx, &(), env);
+        if !self.preview_only {
+            self.toolbar.paint(ctx, &(), env);
+        }
     }
 }
 
