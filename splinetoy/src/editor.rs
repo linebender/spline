@@ -12,6 +12,7 @@ use crate::path::{Path, SplinePoint};
 use crate::pen::Pen;
 use crate::toolbar::{FloatingPanel, Toolbar};
 use crate::tools::{Tool, ToolId};
+use crate::save::SessionState;
 
 const ON_CURVE_CORNER_COLOR: Color = Color::rgb8(0x4B, 0x4E, 0xFF);
 const ON_CURVE_SMOOTH_COLOR: Color = Color::rgb8(0x37, 0xA7, 0x62);
@@ -77,13 +78,16 @@ impl Editor {
 
     #[cfg(target_arch = "wasm32")]
     fn save_contents(&self, data: &EditSession) {
-        let state = crate::save::SessionState {
+        self.get_session_state(data).save_to_url();
+    }
+
+    fn get_session_state(&self, data: &EditSession) -> SessionState {
+        crate::save::SessionState {
             paths: data.iter_paths().map(Path::solver).cloned().collect(),
             selection: data.selection(),
             tool: self.tool.name(),
             preview_only: self.preview_only,
-        };
-        state.save_to_url();
+        }
     }
 }
 
@@ -144,6 +148,36 @@ impl Widget<EditSession> for Editor {
                 if let Err(e) = std::fs::write(file_info.path(), json.as_bytes()) {
                     println!("Error writing json: {}", e);
                 }
+            }
+            Event::Command(cmd) if cmd.is(crate::SAVE_BINARY) => {
+                let file_info = cmd.get_unchecked(crate::SAVE_BINARY);
+                let save_data = match self.get_session_state(data).encode() {
+                    Ok(data) => data,
+                    Err(e) => {
+                        eprintln!("error encoding session: {}", e);
+                        return;
+                    }
+                };
+                if let Err(e) = std::fs::write(file_info.path(), save_data.as_bytes()) {
+                    println!("Error writing json: {}", e);
+                }
+            }
+
+            Event::Command(cmd) if cmd.is(commands::OPEN_FILE) => {
+                let file_info = cmd.get_unchecked(commands::OPEN_FILE);
+                let bytes = std::fs::read(file_info.path()).unwrap();
+                let session = match SessionState::from_bytes(&bytes) {
+                    Ok(sesh) => sesh,
+                    Err(e) => {
+                        eprintln!("error loading data: {}", e);
+                        return;
+                    }
+                };
+                ctx.submit_command(crate::toolbar::SET_TOOL.with(session.tool));
+                self.preview_only = session.preview_only;
+                *data = session.into_edit_session();
+                ctx.request_layout();
+                ctx.request_paint();
             }
             _ => (),
         }

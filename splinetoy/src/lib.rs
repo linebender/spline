@@ -9,8 +9,8 @@ mod toolbar;
 mod tools;
 
 use druid::{
-    commands, platform_menus, AppLauncher, FileDialogOptions, FileSpec, LocalizedString, MenuDesc,
-    MenuItem, SysMods, WindowDesc,
+    commands, platform_menus, AppLauncher, FileDialogOptions, FileInfo, FileSpec, LocalizedString,
+    MenuDesc, MenuItem, Selector, SysMods, WindowDesc,
 };
 
 use edit_session::EditSession;
@@ -20,6 +20,8 @@ use tools::ToolId;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
+pub const SAVE_BINARY: Selector<FileInfo> = Selector::new("splinetoy.save-binary");
 
 #[cfg(target_arch = "wasm32")]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -58,19 +60,39 @@ pub fn main(saved: Option<SessionState>) {
 
 fn file_menu() -> MenuDesc<EditSession> {
     pub const JSON_TYPE: FileSpec = FileSpec::new("JSON Data", &["json"]);
+    pub const BINARY_TYPE: FileSpec = FileSpec::new("Binary Data", &["splinetoy"]);
 
     MenuDesc::new(LocalizedString::new("common-menu-file-menu"))
         .append(platform_menus::mac::file::new_file().disabled())
         .append(platform_menus::mac::file::new_file().disabled())
+        .append(
+            MenuItem::new(
+                LocalizedString::new("common-menu-file-open"),
+                commands::SHOW_OPEN_PANEL
+                    .with(FileDialogOptions::new().allowed_types(vec![BINARY_TYPE])),
+            )
+            .hotkey(SysMods::Cmd, "o"),
+        )
         .append_separator()
         .append(platform_menus::mac::file::close())
+        .append(
+            MenuItem::new(
+                LocalizedString::new("save-as-binary").with_placeholder("Save Binary..."),
+                commands::SHOW_SAVE_PANEL.with(
+                    FileDialogOptions::new()
+                        .allowed_types(vec![BINARY_TYPE])
+                        .accept_command(SAVE_BINARY),
+                ),
+            )
+            .hotkey(SysMods::Cmd, "s"),
+        )
         .append(
             MenuItem::new(
                 LocalizedString::new("save-as-json").with_placeholder("Save JSON..."),
                 commands::SHOW_SAVE_PANEL
                     .with(FileDialogOptions::new().allowed_types(vec![JSON_TYPE])),
             )
-            .hotkey(SysMods::Cmd, "s"),
+            .hotkey(SysMods::CmdShift, "s"),
         )
         .append_separator()
         .append(platform_menus::mac::file::page_setup().disabled())
