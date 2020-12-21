@@ -1,31 +1,36 @@
+use std::time::Duration;
+
 use druid::{
     commands,
     kurbo::{Circle, CubicBez, Line, PathSeg, Point, Vec2},
     piet::StrokeStyle,
     widget::prelude::*,
-    Color, Data, Env, HotKey, KbKey, Rect, SysMods, Widget, WidgetPod,
+    Color, Data, Env, HotKey, KbKey, Rect, SysMods, TimerToken, Widget, WidgetPod,
 };
 
 use crate::edit_session::EditSession;
 use crate::mouse::{Mouse, TaggedEvent};
 use crate::path::{Path, SplinePoint};
 use crate::pen::Pen;
+use crate::save::SessionState;
 use crate::toolbar::{FloatingPanel, Toolbar};
 use crate::tools::{Tool, ToolId};
-use crate::save::SessionState;
 
 const ON_CURVE_CORNER_COLOR: Color = Color::rgb8(0x4B, 0x4E, 0xFF);
 const ON_CURVE_SMOOTH_COLOR: Color = Color::rgb8(0x37, 0xA7, 0x62);
 const OFF_CURVE_COLOR: Color = Color::grey8(0xbb);
 const OFF_CURVE_SELECTED_COLOR: Color = Color::grey8(0x88);
 const FLOATING_PANEL_PADDING: f64 = 20.0;
+const SAVE_DURATION: Duration = Duration::from_secs(2);
 
 pub struct Editor {
     toolbar: WidgetPod<(), FloatingPanel<Toolbar>>,
     mouse: Mouse,
     tool: Box<dyn Tool>,
+    save_token: TimerToken,
     preview: bool,
-    preview_only: bool,
+    /// if true we are locked in select mode and hide the toolbar.
+    select_only: bool,
 }
 
 impl Editor {
@@ -34,16 +39,17 @@ impl Editor {
             toolbar: WidgetPod::new(FloatingPanel::new(Toolbar::default())),
             mouse: Mouse::default(),
             tool: Box::new(Pen::default()),
+            save_token: TimerToken::INVALID,
             preview: false,
-            preview_only: false,
+            select_only: false,
         }
     }
 
-    pub fn from_saved(tool: ToolId, preview_only: bool) -> Editor {
+    pub fn from_saved(tool: ToolId, select_only: bool) -> Editor {
         let tool = crate::tools::tool_for_id(tool).unwrap();
         Editor {
             tool,
-            preview_only,
+            select_only: select_only,
             ..Editor::new()
         }
     }
@@ -86,7 +92,7 @@ impl Editor {
             paths: data.iter_paths().map(Path::solver).cloned().collect(),
             selection: data.selection(),
             tool: self.tool.name(),
-            preview_only: self.preview_only,
+            select_only: self.select_only,
         }
     }
 }
@@ -94,7 +100,7 @@ impl Editor {
 impl Widget<EditSession> for Editor {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut EditSession, env: &Env) {
         if let Event::KeyDown(k) = event {
-            if !self.preview_only {
+            if !self.select_only {
                 if let Some(new_tool) = self.toolbar.widget().inner().tool_for_keypress(k) {
                     let cmd = crate::toolbar::SET_TOOL.with(new_tool);
                     ctx.submit_command(cmd);
@@ -107,7 +113,7 @@ impl Widget<EditSession> for Editor {
             }
         }
 
-        if !self.preview_only {
+        if matches!(event, Event::Command(_)) || !self.select_only {
             self.toolbar.event(ctx, event, &mut (), env);
         }
 
@@ -121,9 +127,8 @@ impl Widget<EditSession> for Editor {
                 ctx.request_update();
                 ctx.request_focus();
             }
-            Event::Command(cmd) if cmd.is(crate::toolbar::SET_TOOL) => {
-                let tool = cmd.get_unchecked(crate::toolbar::SET_TOOL);
-                self.set_tool(ctx, *tool);
+            Event::Timer(token) if *token == self.save_token => {
+                self.save_contents(data);
             }
             Event::MouseUp(m) => self.send_mouse(ctx, TaggedEvent::Up(m.clone()), data),
             Event::MouseMove(m) => self.send_mouse(ctx, TaggedEvent::Moved(m.clone()), data),
@@ -141,6 +146,17 @@ impl Widget<EditSession> for Editor {
                     ctx.request_paint();
                 }
                 self.tool.key_up(k, ctx, data);
+            }
+            Event::Command(cmd) if cmd.is(crate::toolbar::SET_TOOL) => {
+                let tool = cmd.get_unchecked(crate::toolbar::SET_TOOL);
+                self.set_tool(ctx, *tool);
+            }
+            Event::Command(cmd) if cmd.is(crate::TOGGLE_PREVIEW_LOCK) => {
+                if !self.select_only {
+                    ctx.submit_command(crate::toolbar::SET_TOOL.with(ToolId::Select));
+                }
+                self.select_only = !self.select_only;
+                ctx.request_paint();
             }
             Event::Command(cmd) if cmd.is(commands::SAVE_FILE_AS) => {
                 let file_info = cmd.get_unchecked(commands::SAVE_FILE_AS);
@@ -174,7 +190,7 @@ impl Widget<EditSession> for Editor {
                     }
                 };
                 ctx.submit_command(crate::toolbar::SET_TOOL.with(session.tool));
-                self.preview_only = session.preview_only;
+                self.select_only = session.select_only;
                 *data = session.into_edit_session();
                 ctx.request_layout();
                 ctx.request_paint();
@@ -184,7 +200,7 @@ impl Widget<EditSession> for Editor {
     }
 
     fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, _: &EditSession, env: &Env) {
-        if !self.preview_only {
+        if !self.select_only {
             self.toolbar.lifecycle(ctx, event, &(), env);
         }
     }
@@ -197,9 +213,10 @@ impl Widget<EditSession> for Editor {
         env: &Env,
     ) {
         if !old_data.same(data) {
+            self.save_token = ctx.request_timer(SAVE_DURATION);
             ctx.request_layout();
         }
-        if !self.preview_only {
+        if !self.select_only {
             self.toolbar.update(ctx, &(), env);
         }
     }
@@ -211,7 +228,7 @@ impl Widget<EditSession> for Editor {
         _: &EditSession,
         env: &Env,
     ) -> Size {
-        if !self.preview_only {
+        if !self.select_only {
             let child_bc = bc.loosen();
             let size = self.toolbar.layout(ctx, &child_bc, &(), env);
             let orig = (FLOATING_PANEL_PADDING, FLOATING_PANEL_PADDING);
@@ -250,7 +267,7 @@ impl Widget<EditSession> for Editor {
             }
         }
 
-        if !self.preview_only {
+        if !self.select_only {
             self.toolbar.paint(ctx, &(), env);
         }
     }
