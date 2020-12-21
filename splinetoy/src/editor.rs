@@ -158,6 +158,9 @@ impl Widget<EditSession> for Editor {
                 self.select_only = !self.select_only;
                 ctx.request_paint();
             }
+            Event::Command(cmd) if cmd.is(crate::RECENTER_GLYPH) => {
+                data.recenter_glyph();
+            }
             Event::Command(cmd) if cmd.is(commands::SAVE_FILE_AS) => {
                 let file_info = cmd.get_unchecked(commands::SAVE_FILE_AS);
                 let json = data.to_json();

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use druid::kurbo::{BezPath, Line, ParamCurve, ParamCurveNearest};
+use druid::kurbo::{BezPath, Line, ParamCurve, ParamCurveNearest, Rect, Size};
 use druid::{Data, Point, Vec2};
 use spline::{Element, SplineSpec};
 
@@ -181,6 +181,16 @@ impl Path {
 
     pub fn trailing(&self) -> Option<Point> {
         self.trailing
+    }
+
+    pub fn bounding_box(&self) -> Rect {
+        let init = match self.first_point() {
+            Some(pt) => Rect::from_origin_size(pt.point, Size::ZERO),
+            None => Rect::ZERO,
+        };
+
+        self.iter_points()
+            .fold(init, |bbox, pt| bbox.union_pt(pt.point))
     }
 
     pub fn solver(&self) -> &SplineSpec {
@@ -370,6 +380,15 @@ impl Path {
         self.move_point(id, new_pos);
     }
 
+    pub fn nudge_all(&mut self, delta: Vec2) {
+        dbg!(&self.points);
+        for pt in self.points_mut() {
+            pt.point += delta;
+        }
+        self.rebuild_solver();
+        self.after_change();
+    }
+
     pub fn close(&mut self, smooth: bool) {
         assert!(!self.closed);
         let first = self.points_mut().remove(0);
@@ -479,12 +498,14 @@ impl Path {
     /// rebuilds the solver from scratch, which is easier than trying to
     /// incrementally update it for some operations.
     fn rebuild_solver(&mut self) {
-        let mut solver = SplineSpec::new();
-        *solver.elements_mut() = self.iter_spline_elements().collect();
-        if self.closed {
-            solver.close();
+        if self.points.len() > 1 {
+            let mut solver = SplineSpec::new();
+            *solver.elements_mut() = self.iter_spline_elements().collect();
+            if self.closed {
+                solver.close();
+            }
+            self.solver = solver;
         }
-        self.solver = solver;
     }
 
     /// Takes the current solver and updates the position of auto points based

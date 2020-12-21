@@ -30,8 +30,9 @@ type BoxErr = Box<dyn std::error::Error>;
 
 impl SessionState {
     pub fn from_bytes(bytes: &[u8]) -> Result<SessionState, BoxErr> {
+        let bytes = std::str::from_utf8(bytes)?.trim();
         if bytes.len() > B64_HEADER_LEN {
-            let (header, body) = bytes.split_at(B64_HEADER_LEN);
+            let (header, body) = bytes.as_bytes().split_at(B64_HEADER_LEN);
             let version = decode_b64_header(&header).expect("header should always be well-formed");
             return match version {
                 1 => SessionState::from_b64(&body),

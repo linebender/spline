@@ -46,6 +46,11 @@ impl EditSession {
         Some(&self.path).into_iter().chain(self.paths.iter())
     }
 
+    fn iter_paths_mut(&mut self) -> impl Iterator<Item = &mut Path> {
+        let paths = Arc::make_mut(&mut self.paths);
+        Some(&mut self.path).into_iter().chain(paths.iter_mut())
+    }
+
     pub fn bezier(&self) -> BezPath {
         self.iter_paths()
             .flat_map(|p| p.bezier().elements())
@@ -176,6 +181,28 @@ impl EditSession {
             }
         }
         best.map(|(_score, id)| id)
+    }
+
+    /// move the glyph so that its origin is near the top left
+    pub fn recenter_glyph(&mut self) {
+        const DESIRED_ORIGIN: Point = Point::new(80., 60.0);
+        let mut bboxes = self.iter_paths().filter_map(|path| {
+            if path.points().is_empty() {
+                None
+            } else {
+                Some(path.bounding_box())
+            }
+        });
+        let init = match bboxes.next() {
+            Some(bbox) => bbox,
+            None => return,
+        };
+
+        let bbox = bboxes.fold(init, |all, this| all.union(this));
+        let nudge_delta = DESIRED_ORIGIN - bbox.origin();
+        for path in self.iter_paths_mut() {
+            path.nudge_all(nudge_delta);
+        }
     }
 
     pub fn to_json(&self) -> String {

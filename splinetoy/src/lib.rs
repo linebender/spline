@@ -23,6 +23,7 @@ use wasm_bindgen::prelude::*;
 
 pub const SAVE_BINARY: Selector<FileInfo> = Selector::new("splinetoy.save-binary");
 pub const TOGGLE_PREVIEW_LOCK: Selector = Selector::new("splinetoy.toggle-lock");
+pub const RECENTER_GLYPH: Selector = Selector::new("splinetoy.recenter-glyph");
 
 #[cfg(target_arch = "wasm32")]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -104,12 +105,15 @@ fn make_editor(tool: ToolId, preview_only: bool) -> Editor {
 }
 
 fn make_debug_menu() -> MenuDesc<EditSession> {
-    MenuDesc::new(LocalizedString::new("debug-menu-file-name").with_placeholder("Debug")).append(
-        MenuItem::new(
+    MenuDesc::new(LocalizedString::new("debug-menu-file-name").with_placeholder("Debug"))
+        .append(MenuItem::new(
             LocalizedString::new("toggle-preview").with_placeholder("Toggle Preview Lock"),
             TOGGLE_PREVIEW_LOCK,
-        ),
-    )
+        ))
+        .append(MenuItem::new(
+            LocalizedString::new("recenter-glyph").with_placeholder("Recenter Glyph"),
+            RECENTER_GLYPH,
+        ))
 }
 
 /// The main window/app menu.
