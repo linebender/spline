@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use kurbo::{Affine, BezPath, Point, Vec2};
+use kurbo::{Affine, PathSeg, BezPath, Point, Vec2};
 #[cfg(feature = "serde")]
 use serde_::{Deserialize, Serialize};
 
@@ -171,14 +171,26 @@ impl SplineSpec {
     pub fn solve(&mut self) -> Spline {
         if self.dirty {
             self.segments = self.initial_segs();
+            if self.segments.iter().any(Segment::contains_nan) {
+                dbg!(&self.elements);
+                panic!("initial segments");
+            }
             self.ths = self.initial_ths();
             self.dths = vec![0.0; self.ths.len()];
             self.update_segs();
+            if self.segments.iter().any(Segment::contains_nan) {
+                dbg!(&self.elements);
+                panic!("first update segments");
+            }
             for i in 0..10 {
                 let err = self.iterate(i);
                 eprintln!("err = {}", err);
                 self.adjust_tensions(i);
                 self.update_segs();
+                if self.segments.iter().any(Segment::contains_nan) {
+                    dbg!(&self.elements);
+                    panic!("update segments #{}", i);
+                }
             }
             self.dirty = false;
         }
@@ -239,7 +251,7 @@ impl SplineSpec {
                 ths.push(th);
             }
         }
-        ths
+        dbg!(ths)
     }
 
     /// Generate segments from the spline spec and thetas.
@@ -611,6 +623,10 @@ impl Segment {
                 path.push(a * *el);
             }
         }
+        if contains_nan(&path) {
+            dbg!(self, path);
+            panic!("oh no!");
+        }
     }
 
     /// Return a [`BezPath`] representing this segment.
@@ -620,4 +636,21 @@ impl Segment {
         self.render(&mut path);
         path
     }
+
+    fn contains_nan(&self) -> bool {
+        self.k0.is_nan() | self.k1.is_nan() | self.ch.is_nan()
+    }
+
+}
+
+fn contains_nan(path: &BezPath) -> bool {
+    path.segments().any(|seg| match seg {
+        PathSeg::Line(l) => nan_in_pt(&[l.p0, l.p1]),
+        PathSeg::Quad(q) => nan_in_pt(&[q.p0, q.p1, q.p2]),
+        PathSeg::Cubic(c) => nan_in_pt(&[c.p0, c.p1, c.p2, c.p3]),
+    })
+}
+
+fn nan_in_pt(pts: &[Point]) -> bool {
+    pts.iter().any(|p|p.x.is_nan() | p.y.is_nan())
 }
