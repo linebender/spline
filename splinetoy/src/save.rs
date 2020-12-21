@@ -10,7 +10,7 @@ pub struct SessionState {
     pub paths: Vec<SplineSpec>,
     pub selection: Option<PointId>,
     pub tool: ToolId,
-    pub preview_only: bool,
+    pub select_only: bool,
 }
 
 const B64_HEADER_LEN: usize = 4;

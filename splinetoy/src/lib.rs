@@ -22,6 +22,7 @@ use tools::ToolId;
 use wasm_bindgen::prelude::*;
 
 pub const SAVE_BINARY: Selector<FileInfo> = Selector::new("splinetoy.save-binary");
+pub const TOGGLE_PREVIEW_LOCK: Selector = Selector::new("splinetoy.toggle-lock");
 
 #[cfg(target_arch = "wasm32")]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -42,8 +43,8 @@ pub fn main(saved: Option<SessionState>) {
     // describe the main window
     let saved = saved.unwrap_or_default();
     let tool = saved.tool;
-    let preview_only = saved.preview_only;
-    let main_window = WindowDesc::new(move || make_editor(tool, preview_only))
+    let select_only = saved.select_only;
+    let main_window = WindowDesc::new(move || make_editor(tool, select_only))
         .title("Spline Toy")
         .menu(make_menu())
         .with_min_size((200., 200.))
@@ -63,7 +64,6 @@ fn file_menu() -> MenuDesc<EditSession> {
     pub const BINARY_TYPE: FileSpec = FileSpec::new("Binary Data", &["splinetoy"]);
 
     MenuDesc::new(LocalizedString::new("common-menu-file-menu"))
-        .append(platform_menus::mac::file::new_file().disabled())
         .append(platform_menus::mac::file::new_file().disabled())
         .append(
             MenuItem::new(
@@ -103,6 +103,15 @@ fn make_editor(tool: ToolId, preview_only: bool) -> Editor {
     Editor::from_saved(tool, preview_only)
 }
 
+fn make_debug_menu() -> MenuDesc<EditSession> {
+    MenuDesc::new(LocalizedString::new("debug-menu-file-name").with_placeholder("Debug")).append(
+        MenuItem::new(
+            LocalizedString::new("toggle-preview").with_placeholder("Toggle Preview Lock"),
+            TOGGLE_PREVIEW_LOCK,
+        ),
+    )
+}
+
 /// The main window/app menu.
 #[allow(unused_mut)]
 fn make_menu() -> MenuDesc<EditSession> {
@@ -112,5 +121,5 @@ fn make_menu() -> MenuDesc<EditSession> {
         menu = menu.append(platform_menus::mac::application::default());
     }
 
-    menu.append(file_menu())
+    menu.append(file_menu()).append(make_debug_menu())
 }
