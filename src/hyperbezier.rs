@@ -248,14 +248,19 @@ const MAX_A: f64 = 1.0 - 1e-4;
 ///
 /// This is oriented for the rightmost control point.
 fn integrate_basis(bias: f64, s: f64) -> f64 {
-    if bias > 1.0 {
-        let a = (bias - 1.0).min(MAX_A);
-        let norm = 1.0 / (1.0 - a) + (1.0 - a).ln() - 1.0;
-        (1.0 / (1.0 - a * s) + (1.0 - a * s).ln()) / norm
-    } else {
+    if bias <= 1.0 {
         let iy0 = 4.0 * s.powi(3) - 3.0 * s.powi(4);
         let iy1 = s.powi(2);
         iy0 + bias * (iy1 - iy0)
+    } else if bias < 1.0002 {
+        // This is a more numerically robust approximation to the
+        // exact analytical formula in the next clause.
+        let b = (bias - 1.0) * (4.0 / 3.0);
+        (1.0 - b) * s.powi(2) + b * s.powi(3)
+    } else {
+        let a = (bias - 1.0).min(MAX_A);
+        let norm = 1.0 / (1.0 - a) + (1.0 - a).ln() - 1.0;
+        (1.0 / (1.0 - a * s) + (1.0 - a * s).ln()) / norm
     }
 }
 
