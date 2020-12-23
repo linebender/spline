@@ -1,5 +1,11 @@
 use std::time::Duration;
 
+#[cfg(target_arch = "wasm32")]
+use std::sync::{
+    atomic::{AtomicBool, Ordering::Relaxed},
+    Arc,
+};
+
 use druid::{
     commands,
     kurbo::{Circle, CubicBez, Line, PathSeg, Point, Vec2},
@@ -31,6 +37,9 @@ pub struct Editor {
     preview: bool,
     /// if true we are locked in select mode and hide the toolbar.
     select_only: bool,
+
+    #[cfg(target_arch = "wasm32")]
+    we_set_anchor: Arc<AtomicBool>,
 }
 
 impl Editor {
@@ -42,6 +51,8 @@ impl Editor {
             save_token: TimerToken::INVALID,
             preview: false,
             select_only: false,
+            #[cfg(target_arch = "wasm32")]
+            we_set_anchor: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -79,12 +90,41 @@ impl Editor {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    fn save_contents(&self, _: &EditSession) {}
-
-    #[cfg(target_arch = "wasm32")]
+    #[allow(unused_variables)]
     fn save_contents(&self, data: &EditSession) {
-        self.get_session_state(data).save_to_url();
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.get_session_state(data).save_to_url();
+            self.we_set_anchor.store(true, Relaxed);
+        }
+    }
+
+    /// Hack: on wasm, we want to force reload when the *user* changes the
+    /// hash/anchor string, but not if we've set it ourselves.
+    #[allow(dead_code)]
+    fn setup_reload_listener(&self) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            use wasm_bindgen::{closure::Closure, JsCast};
+            let window = match web_sys::window() {
+                Some(window) => window,
+                None => return,
+            };
+            let flag = self.we_set_anchor.clone();
+            let callback: Box<dyn Fn() -> ()> = Box::new(move || {
+                if !flag.swap(false, Relaxed) {
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.location().reload();
+                        web_sys::console::log_1(&format!("reloading").into())
+                    }
+                }
+            });
+            let closure = Closure::wrap(callback);
+            let _ = window.add_event_listener_with_callback("hashchange", closure.as_ref().unchecked_ref());
+            // we could stash this in Editor but both need to live for the duration
+            // of the program?
+            closure.forget();
+        }
     }
 
     fn get_session_state(&self, data: &EditSession) -> SessionState {
@@ -126,6 +166,10 @@ impl Widget<EditSession> for Editor {
                 ctx.submit_command(crate::toolbar::SET_TOOL.with(self.tool.name()));
                 ctx.request_update();
                 ctx.request_focus();
+                #[cfg(target_arch = "wasm32")]
+                {
+                    self.setup_reload_listener();
+                }
             }
             Event::Timer(token) if *token == self.save_token => {
                 self.save_contents(data);
