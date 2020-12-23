@@ -107,6 +107,12 @@ impl EditSession {
         }
     }
 
+    pub fn nudge_selected_path(&mut self, delta: Vec2) {
+        if let Some(sel) = self.selection {
+            self.path_containing_pt_mut(sel).nudge_all(delta);
+        }
+    }
+
     pub fn is_selected(&self, id: PointId) -> bool {
         Some(id) == self.selection
     }

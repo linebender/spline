@@ -47,7 +47,11 @@ impl Select {
             nudge *= 10.;
         }
 
-        data.nudge_selection(nudge);
+        if event.mods.alt() {
+            data.nudge_selected_path(nudge);
+        } else {
+            data.nudge_selection(nudge);
+        }
     }
 }
 
