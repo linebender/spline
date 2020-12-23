@@ -381,7 +381,6 @@ impl Path {
     }
 
     pub fn nudge_all(&mut self, delta: Vec2) {
-        dbg!(&self.points);
         for pt in self.points_mut() {
             pt.point += delta;
         }
@@ -498,14 +497,12 @@ impl Path {
     /// rebuilds the solver from scratch, which is easier than trying to
     /// incrementally update it for some operations.
     fn rebuild_solver(&mut self) {
-        if self.points.len() > 1 {
-            let mut solver = SplineSpec::new();
-            *solver.elements_mut() = self.iter_spline_elements().collect();
-            if self.closed {
-                solver.close();
-            }
-            self.solver = solver;
+        let mut solver = SplineSpec::new();
+        *solver.elements_mut() = self.iter_spline_elements().collect();
+        if self.closed {
+            solver.close();
         }
+        self.solver = solver;
     }
 
     /// Takes the current solver and updates the position of auto points based
