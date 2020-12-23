@@ -6,7 +6,7 @@ use druid::{Data, Point, Vec2};
 use crate::path::{Path, PointId, SplinePoint};
 
 const MIN_CLICK_DISTANCE: f64 = 10.0;
-const CLICK_PENALTY: f64 = MIN_CLICK_DISTANCE / 2.0;
+const CLICK_PENALTY_FACTOR: f64 = 2.0;
 
 #[derive(Clone, Debug, Data)]
 pub struct EditSession {
@@ -166,22 +166,26 @@ impl EditSession {
         }
     }
 
+    pub fn toggle_point_type(&mut self, id: PointId) {
+        self.path_containing_pt_mut(id).toggle_point_type(id);
+    }
+
     pub fn move_point(&mut self, id: PointId, pos: Point) {
         self.path_containing_pt_mut(id).move_point(id, pos);
     }
 
     pub fn hit_test_points(&self, point: Point, max_dist: Option<f64>) -> Option<PointId> {
         let max_dist = max_dist.unwrap_or(MIN_CLICK_DISTANCE);
+        let penalty = max_dist / CLICK_PENALTY_FACTOR;
         let mut best = None;
         for p in self.iter_paths().flat_map(Path::points) {
             let dist = p.point.distance(point);
             // penalize the currently selected point
-            let sel_penalty = if Some(p.id) == self.selection {
-                CLICK_PENALTY
+            let score = if Some(p.id) == self.selection {
+                dist + penalty
             } else {
-                0.0
+                dist
             };
-            let score = dist + sel_penalty;
             if dist < max_dist && best.map(|(s, _id)| score < s).unwrap_or(true) {
                 best = Some((score, p.id))
             }

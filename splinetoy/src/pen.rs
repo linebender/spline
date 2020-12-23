@@ -8,6 +8,9 @@ use crate::{
     tools::{self, EditType, Tool, ToolId},
 };
 
+// distance from a point for us to toggle it's type on alt+click
+const TOGGLE_POINT_DIST: f64 = 6.0;
+
 /// The state of the pen.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Pen {
@@ -20,6 +23,16 @@ impl MouseDelegate<EditSession> for Pen {
     fn left_down(&mut self, event: &MouseEvent, data: &mut EditSession) {
         if event.count == 1 {
             let smooth = event.mods.alt();
+            if smooth {
+                if let Some(pt) = data.hit_test_points(event.pos, Some(TOGGLE_POINT_DIST)) {
+                    let path = data.active_path();
+                    if path.is_closed() || path.first_point().map(|pt| pt.id) != Some(pt) {
+                        data.toggle_point_type(pt);
+                        return;
+                    }
+                }
+            }
+
             let point = match data.active_path().points().last() {
                 Some(prev) if event.mods.shift() => tools::axis_locked_point(event.pos, prev.point),
                 _ => event.pos,
