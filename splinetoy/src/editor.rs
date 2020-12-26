@@ -22,10 +22,12 @@ use crate::save::SessionState;
 use crate::toolbar::{FloatingPanel, Toolbar};
 use crate::tools::{Tool, ToolId};
 
-const ON_CURVE_CORNER_COLOR: Color = Color::rgb8(0x4B, 0x4E, 0xFF);
-const ON_CURVE_SMOOTH_COLOR: Color = Color::rgb8(0x37, 0xA7, 0x62);
-const OFF_CURVE_COLOR: Color = Color::grey8(0xbb);
-const OFF_CURVE_SELECTED_COLOR: Color = Color::grey8(0x88);
+const SMOOTH_POINT_OUTER_COLOR: Color = Color::rgb8(0x44, 0x28, 0xEC);
+const SMOOTH_POINT_INNER_COLOR: Color = Color::rgb8(0x57, 0x9A, 0xFF);
+const CORNER_POINT_OUTER_COLOR: Color = Color::rgb8(0x20, 0x8E, 0x56);
+const CORNER_POINT_INNER_COLOR: Color = Color::rgb8(0x6A, 0xE7, 0x56);
+const OFF_CURVE_POINT_OUTER_COLOR: Color = Color::grey8(0x99);
+const OFF_CURVE_POINT_INNER_COLOR: Color = Color::grey8(0xCC);
 const FLOATING_PANEL_PADDING: f64 = 20.0;
 const SAVE_DURATION: Duration = Duration::from_secs(1);
 
@@ -330,16 +332,14 @@ fn draw_first_point(ctx: &mut PaintCtx, path: &Path, is_selected: bool) {
         return;
     }
     let rad = if is_selected { 4.0 } else { 3.0 };
-    let color = if is_selected {
-        OFF_CURVE_SELECTED_COLOR
-    } else {
-        OFF_CURVE_COLOR
-    };
 
     if path.points().len() == 1 {
         let first = path.points()[0].point;
         let circ = Circle::new(first, rad);
-        ctx.fill(circ, &color);
+        ctx.fill(circ, &OFF_CURVE_POINT_INNER_COLOR);
+        if is_selected {
+            ctx.stroke(circ, &OFF_CURVE_POINT_OUTER_COLOR, 2.0);
+        }
     } else if let Some(tangent) = match path.bezier().segments().next() {
         Some(PathSeg::Line(line)) => Some((line.p1 - line.p0).normalize()),
         Some(PathSeg::Cubic(cubic)) => Some(tangent_vector(0.05, cubic).normalize()),
@@ -347,7 +347,11 @@ fn draw_first_point(ctx: &mut PaintCtx, path: &Path, is_selected: bool) {
     } {
         let p0 = path.points()[0].point;
         let line = perp(p0, p0 + tangent, 10.0);
-        ctx.stroke(line, &color, 2.0);
+        if is_selected {
+            ctx.stroke(line, &OFF_CURVE_POINT_OUTER_COLOR, 2.0);
+        } else {
+            ctx.stroke(line, &OFF_CURVE_POINT_INNER_COLOR, 2.0);
+        }
     }
 }
 
@@ -375,17 +379,18 @@ fn draw_on_curve(ctx: &mut PaintCtx, pt: Point, smooth: bool, selected: bool) {
     let rad = if selected { 5.0 } else { 4.0 };
     if smooth {
         let circ = Circle::new(pt, rad);
+        ctx.fill(circ, &SMOOTH_POINT_INNER_COLOR);
         if selected {
-            ctx.fill(circ, &ON_CURVE_SMOOTH_COLOR);
-        } else {
-            ctx.stroke(circ, &ON_CURVE_SMOOTH_COLOR, 1.0);
+            ctx.stroke(circ, &SMOOTH_POINT_OUTER_COLOR, 2.0);
         }
+    //} else {
+    //ctx.stroke(circ, &ON_CURVE_SMOOTH_COLOR, 1.0);
+    //}
     } else {
         let square = Rect::from_center_size(pt, (rad * 2.0, rad * 2.0));
+        ctx.fill(square, &CORNER_POINT_INNER_COLOR);
         if selected {
-            ctx.fill(square, &ON_CURVE_CORNER_COLOR);
-        } else {
-            ctx.stroke(square, &ON_CURVE_CORNER_COLOR, 1.0);
+            ctx.stroke(square, &CORNER_POINT_OUTER_COLOR, 2.0);
         }
     }
 }
@@ -402,26 +407,25 @@ fn draw_handle_if_needed(ctx: &mut PaintCtx, p1: SplinePoint, p2: SplinePoint, s
     let edge = radius * 2.0;
     let line = Line::new(p1.point, p2.point);
     let handle_color = if selected {
-        &OFF_CURVE_SELECTED_COLOR
+        &OFF_CURVE_POINT_OUTER_COLOR
     } else {
-        &OFF_CURVE_COLOR
+        &OFF_CURVE_POINT_INNER_COLOR
     };
 
     if is_auto {
         let stroke = StrokeStyle::new().dash(vec![2.0, 4.0], 1.0);
-        ctx.stroke_styled(line, &OFF_CURVE_COLOR, 1.0, &stroke);
+        ctx.stroke_styled(line, &OFF_CURVE_POINT_INNER_COLOR, 1.0, &stroke);
         let rect = Rect::from_center_size(handle_pt, (edge, edge));
         let line1 = Line::new(rect.origin(), (rect.max_x(), rect.max_y()));
         let line2 = Line::new((rect.x0, rect.y1), (rect.x1, rect.y0));
         ctx.stroke(line1, handle_color, thickness);
         ctx.stroke(line2, handle_color, thickness);
     } else {
-        ctx.stroke(line, &OFF_CURVE_COLOR, 1.0);
+        ctx.stroke(line, &OFF_CURVE_POINT_INNER_COLOR, 1.0);
         let circ = Circle::new(handle_pt, radius);
+        ctx.fill(circ, &OFF_CURVE_POINT_INNER_COLOR);
         if selected {
-            ctx.fill(circ, handle_color);
-        } else {
-            ctx.stroke(circ, handle_color, 1.0);
+            ctx.stroke(circ, &OFF_CURVE_POINT_OUTER_COLOR, 2.0);
         }
     }
 }
