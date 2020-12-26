@@ -72,7 +72,7 @@ impl EditSession {
             .map(|pt| pt.point.distance(point) < MIN_CLICK_DISTANCE)
             .unwrap_or(false)
         {
-            self.path.close(smooth);
+            self.selection = Some(self.path.close(smooth));
         } else if let Some((idx, _)) = self.nearest_segment_for_point(point) {
             let sel = match idx {
                 0 => self.path.insert_point_on_path(point),

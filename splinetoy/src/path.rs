@@ -262,6 +262,21 @@ impl Path {
         self.solver.spline_to(None, None, p3, smooth);
     }
 
+    pub fn close(&mut self, smooth: bool) -> PointId {
+        assert!(!self.closed);
+        let first = self.points_mut().remove(0);
+        if smooth {
+            self.spline_to(first.point, smooth);
+        } else {
+            self.line_to(first.point, smooth);
+        }
+        self.trailing = None;
+        self.closed = true;
+        self.rebuild_solver();
+        self.after_change();
+        self.points().last().map(|pt| pt.id).unwrap()
+    }
+
     /// Given a click position, find the closest point on the spline
     /// to that position and add a point there.
     pub fn insert_point_on_path(&mut self, pt: Point) -> PointId {
@@ -384,19 +399,6 @@ impl Path {
         for pt in self.points_mut() {
             pt.point += delta;
         }
-        self.rebuild_solver();
-        self.after_change();
-    }
-
-    pub fn close(&mut self, smooth: bool) {
-        assert!(!self.closed);
-        let first = self.points_mut().remove(0);
-        if smooth {
-            self.spline_to(first.point, smooth);
-        } else {
-            self.line_to(first.point, smooth);
-        }
-        self.closed = true;
         self.rebuild_solver();
         self.after_change();
     }
@@ -585,7 +587,9 @@ impl Path {
                 panic!("unexpected element {:?}", last_el);
             }
         }
-        self.trailing = Some(handle);
+        if !self.closed {
+            self.trailing = Some(handle);
+        }
     }
 }
 

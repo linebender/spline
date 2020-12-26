@@ -27,7 +27,7 @@ const ON_CURVE_SMOOTH_COLOR: Color = Color::rgb8(0x37, 0xA7, 0x62);
 const OFF_CURVE_COLOR: Color = Color::grey8(0xbb);
 const OFF_CURVE_SELECTED_COLOR: Color = Color::grey8(0x88);
 const FLOATING_PANEL_PADDING: f64 = 20.0;
-const SAVE_DURATION: Duration = Duration::from_secs(2);
+const SAVE_DURATION: Duration = Duration::from_secs(1);
 
 pub struct Editor {
     toolbar: WidgetPod<(), FloatingPanel<Toolbar>>,
@@ -120,7 +120,8 @@ impl Editor {
                 }
             });
             let closure = Closure::wrap(callback);
-            let _ = window.add_event_listener_with_callback("hashchange", closure.as_ref().unchecked_ref());
+            let _ = window
+                .add_event_listener_with_callback("hashchange", closure.as_ref().unchecked_ref());
             // we could stash this in Editor but both need to live for the duration
             // of the program?
             closure.forget();
