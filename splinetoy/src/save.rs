@@ -42,6 +42,7 @@ impl SessionState {
         Err(DataError::InvalidHeader.into())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_json(bytes: &[u8]) -> Result<SessionState, BoxErr> {
         let paths = serde_json::from_slice(bytes)?;
         Ok(SessionState {

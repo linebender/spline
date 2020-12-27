@@ -201,6 +201,7 @@ impl EditSession {
     }
 
     /// move the glyph so that its origin is near the top left
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn recenter_glyph(&mut self) {
         const DESIRED_ORIGIN: Point = Point::new(80., 60.0);
         let mut bboxes = self.iter_paths().filter_map(|path| {
@@ -236,6 +237,7 @@ impl EditSession {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn to_json(&self) -> String {
         let paths = self
             .paths

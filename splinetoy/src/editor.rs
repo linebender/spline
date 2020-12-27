@@ -6,8 +6,10 @@ use std::sync::{
     Arc,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use druid::commands;
+
 use druid::{
-    commands,
     kurbo::{Circle, CubicBez, Line, PathSeg, Point, Vec2},
     piet::StrokeStyle,
     widget::prelude::*,
@@ -202,6 +204,7 @@ impl Widget<EditSession> for Editor {
                 let tool = cmd.get_unchecked(crate::toolbar::SET_TOOL);
                 self.set_tool(ctx, *tool);
             }
+            #[cfg(not(target_arch = "wasm32"))]
             Event::Command(cmd) if cmd.is(crate::TOGGLE_PREVIEW_LOCK) => {
                 if !self.select_only {
                     ctx.submit_command(crate::toolbar::SET_TOOL.with(ToolId::Select));
@@ -209,9 +212,11 @@ impl Widget<EditSession> for Editor {
                 self.select_only = !self.select_only;
                 ctx.request_paint();
             }
+            #[cfg(not(target_arch = "wasm32"))]
             Event::Command(cmd) if cmd.is(crate::RECENTER_GLYPH) => {
                 data.recenter_glyph();
             }
+            #[cfg(not(target_arch = "wasm32"))]
             Event::Command(cmd) if cmd.is(commands::SAVE_FILE_AS) => {
                 let file_info = cmd.get_unchecked(commands::SAVE_FILE_AS);
                 let json = data.to_json();
@@ -219,6 +224,7 @@ impl Widget<EditSession> for Editor {
                     println!("Error writing json: {}", e);
                 }
             }
+            #[cfg(not(target_arch = "wasm32"))]
             Event::Command(cmd) if cmd.is(crate::SAVE_BINARY) => {
                 let file_info = cmd.get_unchecked(crate::SAVE_BINARY);
                 let save_data = match self.get_session_state(data).encode() {
@@ -233,6 +239,7 @@ impl Widget<EditSession> for Editor {
                 }
             }
 
+            #[cfg(not(target_arch = "wasm32"))]
             Event::Command(cmd) if cmd.is(commands::OPEN_FILE) => {
                 let file_info = cmd.get_unchecked(commands::OPEN_FILE);
                 let extension = file_info
