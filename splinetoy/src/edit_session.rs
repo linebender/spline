@@ -89,7 +89,9 @@ impl EditSession {
     }
 
     pub fn update_for_drag(&mut self, handle: Point) {
-        self.path.update_for_drag(handle)
+        if !self.path.points().is_empty() {
+            self.path.update_for_drag(handle)
+        }
     }
 
     pub fn delete(&mut self) {
