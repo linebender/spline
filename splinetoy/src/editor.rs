@@ -134,7 +134,12 @@ impl Editor {
 
     fn get_session_state(&self, data: &EditSession) -> SessionState {
         crate::save::SessionState {
-            paths: data.iter_paths().map(Path::solver).cloned().collect(),
+            paths: data
+                .iter_paths()
+                .filter(|p| !p.points().is_empty())
+                .map(Path::solver)
+                .cloned()
+                .collect(),
             selection: data.selection(),
             tool: self.tool.name(),
             select_only: self.select_only,

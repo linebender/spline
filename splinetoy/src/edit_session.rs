@@ -242,6 +242,7 @@ impl EditSession {
         let paths = self
             .paths
             .iter()
+            .filter(|p| !p.points().is_empty())
             .map(Path::solver)
             .chain(Some(self.path.solver()))
             .collect::<Vec<_>>();
