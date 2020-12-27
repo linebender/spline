@@ -268,6 +268,10 @@ fn integrate_basis(bias: f64, s: f64) -> f64 {
 fn compute_k(bias: f64) -> f64 {
     if bias <= 1.0 {
         bias * 2.0
+    } else if bias < 1.0007 {
+        let a = bias - 1.0;
+        // A few terms of the Taylors series expansion of the formula below.
+        2.0 + 4.0 / 3.0 * a + 11.0 / 9.0 * a * a
     } else {
         let a = (bias - 1.0).min(MAX_A);
         // Reciprocal of integral
@@ -302,7 +306,7 @@ pub(crate) fn compute_k_inv(k: f64) -> f64 {
 
 #[test]
 fn test_k() {
-    for k in &[0.0, 1.0, 2.0, 3.0, 5.0, 10.0, 20.0] {
+    for k in &[0.0, 1.0, 2.0, 2.000001, 3.0, 5.0, 10.0, 20.0] {
         let bias = compute_k_inv(*k);
         let actual_k = compute_k(bias);
         assert!((k - actual_k).abs() < 1e-5);
