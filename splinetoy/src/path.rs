@@ -430,8 +430,20 @@ impl Path {
             let new_point = transform * pt.point;
             pt.point = new_point;
         }
+        self.quantize_points(2);
         self.rebuild_solver();
         self.after_change();
+    }
+
+    /// reduce precision to the provided number of decimal points.
+    fn quantize_points(&mut self, precision: u16) {
+        let factor = 10f64.powi(precision as i32);
+        for point in self.points_mut() {
+            let Point { x, y } = point.point;
+            let x = (x * factor).round() / factor;
+            let y = (y * factor).round() / factor;
+            point.point = Point::new(x, y);
+        }
     }
 
     pub fn update_for_drag(&mut self, handle: Point) {
