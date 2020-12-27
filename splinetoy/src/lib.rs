@@ -70,7 +70,7 @@ fn file_menu() -> MenuDesc<EditSession> {
             MenuItem::new(
                 LocalizedString::new("common-menu-file-open"),
                 commands::SHOW_OPEN_PANEL
-                    .with(FileDialogOptions::new().allowed_types(vec![BINARY_TYPE])),
+                    .with(FileDialogOptions::new().allowed_types(vec![BINARY_TYPE, JSON_TYPE])),
             )
             .hotkey(SysMods::Cmd, "o"),
         )

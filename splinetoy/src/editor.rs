@@ -231,8 +231,18 @@ impl Widget<EditSession> for Editor {
 
             Event::Command(cmd) if cmd.is(commands::OPEN_FILE) => {
                 let file_info = cmd.get_unchecked(commands::OPEN_FILE);
+                let extension = file_info
+                    .path()
+                    .extension()
+                    .map(|s| s.to_string_lossy())
+                    .unwrap();
                 let bytes = std::fs::read(file_info.path()).unwrap();
-                let session = match SessionState::from_bytes(&bytes) {
+                let session = match extension.as_ref() {
+                    "json" => SessionState::from_json(&bytes),
+                    "splinetoy" => SessionState::from_bytes(&bytes),
+                    _ => panic!("unexpected file extension '{}'", extension),
+                };
+                let session = match session {
                     Ok(sesh) => sesh,
                     Err(e) => {
                         eprintln!("error loading data: {}", e);

@@ -42,6 +42,14 @@ impl SessionState {
         Err(DataError::InvalidHeader.into())
     }
 
+    pub fn from_json(bytes: &[u8]) -> Result<SessionState, BoxErr> {
+        let paths = serde_json::from_slice(bytes)?;
+        Ok(SessionState {
+            paths,
+            ..Default::default()
+        })
+    }
+
     #[cfg(target_arch = "wasm32")]
     pub fn init_from_current_url() -> Result<SessionState, BoxErr> {
         let window = web_sys::window().ok_or(DataError::MissingWindow)?;

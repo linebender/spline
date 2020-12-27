@@ -221,7 +221,7 @@ impl EditSession {
     }
 
     pub fn to_json(&self) -> String {
-        let paths = [self.path.solver()];
+        let paths = self.paths.iter().map(Path::solver).chain(Some(self.path.solver())).collect::<Vec<_>>();
         serde_json::to_string_pretty(&paths).unwrap_or_default()
     }
 
