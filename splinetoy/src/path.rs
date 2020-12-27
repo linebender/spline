@@ -389,23 +389,32 @@ impl Path {
         self.points().last().map(|pt| pt.id)
     }
 
+    /// public API; anything hitting this is presumed to be a user-initiated
+    /// action
     pub fn nudge(&mut self, id: PointId, delta: Vec2) {
         let idx = self.idx_for_point(id).unwrap();
-        self.points_mut()[idx].point += delta;
+        self.nudge_impl(idx, delta);
+
+        if self.points()[idx].is_auto() {
+            self.points_mut()[idx].toggle_type();
+        }
 
         if self.points()[idx].is_on_curve() {
             let prev = self.prev_idx(idx);
             let next = self.next_idx(idx);
             if self.points()[prev].is_control() {
-                self.nudge(self.points()[prev].id, delta);
+                self.nudge_impl(prev, delta);
             }
             if self.points()[next].is_control() {
-                self.nudge(self.points()[next].id, delta);
+                self.nudge_impl(prev, delta);
             }
         }
-
         self.rebuild_solver();
         self.after_change();
+    }
+
+    fn nudge_impl(&mut self, idx: usize, delta: Vec2) {
+        self.points_mut()[idx].point += delta;
     }
 
     pub fn nudge_all(&mut self, delta: Vec2) {
