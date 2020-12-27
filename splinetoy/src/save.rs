@@ -30,6 +30,11 @@ type BoxErr = Box<dyn std::error::Error>;
 
 impl SessionState {
     pub fn from_bytes(bytes: &[u8]) -> Result<SessionState, BoxErr> {
+        let bytes = if bytes.first() == Some(&b'#') {
+            &bytes[1..]
+        } else {
+            bytes
+        };
         let bytes = std::str::from_utf8(bytes)?.trim();
         if bytes.len() > B64_HEADER_LEN {
             let (header, body) = bytes.as_bytes().split_at(B64_HEADER_LEN);
@@ -69,8 +74,7 @@ impl SessionState {
         if anchor.is_empty() {
             Ok(Default::default())
         } else {
-            let bytes = anchor.trim_start_matches('#');
-            Self::from_bytes(bytes.as_bytes())
+            Self::from_bytes(anchor.as_bytes())
         }
     }
 
@@ -87,7 +91,7 @@ impl SessionState {
         if let Some(window) = web_sys::window() {
             let save_str = self.encode()?;
             web_sys::console::log_1(&format!("search: {:?}", window.location().search()).into());
-            window.location().set_hash(&save_str).unwrap();
+            window.location().replace(&save_str).unwrap();
             web_sys::console::log_1(&format!("saved {} bytes to anchor", save_str.len()).into());
             Ok(())
         } else {
@@ -113,6 +117,7 @@ impl SessionState {
     pub fn encode(&self) -> Result<String, BoxErr> {
         use flate2::{write::ZlibEncoder, Compression};
         let mut buf = Vec::with_capacity(128);
+        buf.push(b'#');
         let header = encode_b64_header(CURRENT_VERSION);
         buf.extend_from_slice(&header);
         let b64_writer = base64::write::EncoderWriter::new(&mut buf, base64::URL_SAFE);
