@@ -406,7 +406,7 @@ impl Path {
                 self.nudge_impl(prev, delta);
             }
             if self.points()[next].is_control() {
-                self.nudge_impl(prev, delta);
+                self.nudge_impl(next, delta);
             }
         }
         self.rebuild_solver();
