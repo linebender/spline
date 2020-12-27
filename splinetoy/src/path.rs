@@ -391,8 +391,21 @@ impl Path {
 
     pub fn nudge(&mut self, id: PointId, delta: Vec2) {
         let idx = self.idx_for_point(id).unwrap();
-        let new_pos = self.points().get(idx).unwrap().point + delta;
-        self.move_point(id, new_pos);
+        self.points_mut()[idx].point += delta;
+
+        if self.points()[idx].is_on_curve() {
+            let prev = self.prev_idx(idx);
+            let next = self.next_idx(idx);
+            if self.points()[prev].is_control() {
+                self.nudge(self.points()[prev].id, delta);
+            }
+            if self.points()[next].is_control() {
+                self.nudge(self.points()[next].id, delta);
+            }
+        }
+
+        self.rebuild_solver();
+        self.after_change();
     }
 
     pub fn nudge_all(&mut self, delta: Vec2) {
@@ -414,16 +427,84 @@ impl Path {
 
     pub fn move_point(&mut self, id: PointId, new_point: Point) {
         let pos = self.idx_for_point(id).unwrap();
-        let point = self.points_mut().get_mut(pos).unwrap();
-        point.point = new_point;
-        if point.is_auto() {
-            point.toggle_type();
+        let delta = new_point - self.points()[pos].point;
+        self.nudge(id, delta);
+    }
+
+    pub fn update_handle(&mut self, id: PointId, mut new_point: Point, is_locked: bool) {
+        if let Some(bcp1) = self.idx_for_point(id) {
+            if let Some((on_curve, bcp2)) = self.tangent_handle_opt(bcp1) {
+                if is_locked {
+                    new_point =
+                        crate::tools::axis_locked_point(new_point, self.points[on_curve].point);
+                }
+                let mut point = &mut self.points_mut()[bcp1];
+                point.point = new_point;
+                if point.is_auto() {
+                    point.toggle_type();
+                }
+
+                if let Some(bcp2) = bcp2 {
+                    self.adjust_handle_angle(bcp1, on_curve, bcp2);
+                }
+            }
+            self.rebuild_solver();
+            self.after_change();
+        }
+    }
+    /// Return the index for the on_curve point, and the optional 'other' handle.
+    fn tangent_handle_opt(&self, idx: usize) -> Option<(usize, Option<usize>)> {
+        assert!(!self.points[idx].is_on_curve());
+        let prev = self.prev_idx(idx);
+        let next = self.next_idx(idx);
+        if self.points[prev].is_on_curve() {
+            let prev2 = self.prev_idx(prev);
+            if self.points[prev].is_smooth() && self.points[prev2].is_control() {
+                return Some((prev, Some(prev2)));
+            } else {
+                return Some((prev, None));
+            }
+        } else if self.points[next].is_on_curve() {
+            let next2 = self.next_idx(next);
+            if self.points[next].is_smooth() && !self.points[next2].is_on_curve() {
+                return Some((next, Some(next2)));
+            } else {
+                return Some((next, None));
+            }
+        }
+        None
+    }
+
+    /// Update a tangent handle in response to the movement of the partner handle.
+    /// `bcp1` is the handle that has moved, and `bcp2` is the handle that needs
+    /// to be adjusted.
+    fn adjust_handle_angle(&mut self, bcp1: usize, on_curve: usize, bcp2: usize) {
+        let raw_angle = self.points[bcp1].point - self.points[on_curve].point;
+        if raw_angle.hypot() == 0.0 {
+            return;
         }
 
-        self.rebuild_solver();
-        self.after_change();
-        //FIXME: if we're smooth, and the opposite handle is non-auto, we should
-        //update that handle as well?
+        // that angle is in the opposite direction, so flip it
+        let norm_angle = raw_angle.normalize() * -1.0;
+        let handle_len = (self.points[bcp2].point - self.points[on_curve].point).hypot();
+
+        let new_handle_offset = norm_angle * handle_len;
+        let new_pos = self.points[on_curve].point + new_handle_offset;
+        self.points_mut()[bcp2].point = new_pos;
+    }
+
+    #[inline]
+    fn prev_idx(&self, idx: usize) -> usize {
+        if idx == 0 {
+            self.points.len() - 1
+        } else {
+            idx - 1
+        }
+    }
+
+    #[inline]
+    fn next_idx(&self, idx: usize) -> usize {
+        (idx + 1) % self.points.len()
     }
 
     /// If this is an on-curve point, toggle its smoothness
@@ -433,8 +514,21 @@ impl Path {
             .expect("selected point always exists");
 
         self.points_mut().get_mut(pos).unwrap().toggle_type();
+        if self.points().get(pos).unwrap().is_smooth() {
+            self.align_handles(id);
+        }
         self.rebuild_solver();
         self.after_change();
+    }
+
+    /// if we make a corner smooth we need to update the handles.
+    fn align_handles(&mut self, id: PointId) {
+        let pos = self.idx_for_point(id).unwrap();
+        let prev = self.prev_idx(pos);
+        let next = self.next_idx(pos);
+        if self.points[prev].is_control() && self.points()[next].is_control() {
+            self.adjust_handle_angle(prev, pos, next);
+        }
     }
 
     pub fn nearest_segment_distance(&self, point: Point) -> f64 {

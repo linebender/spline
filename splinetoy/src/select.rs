@@ -7,8 +7,10 @@ use crate::{edit_session::EditSession, path::PointId};
 /// A set of states that are possible while handling a mouse drag.
 #[derive(Debug, Clone)]
 enum DragState {
-    /// State for a drag that is moving an off-curve point.
+    /// State for a drag that is moving an on-curve point.
     MovePoint(PointId),
+    /// State for a drag that is moving an off-curve point.
+    MoveControl(PointId),
     ///// State if some earlier gesture consumed the mouse-down, and we should not
     ///// recognize a drag.
     //Suppress,
@@ -122,21 +124,34 @@ impl MouseDelegate<EditSession> for Select {
     }
 
     fn left_drag_began(&mut self, drag: Drag, data: &mut EditSession) {
-        if let Some(pt) = data.selected_point() {
-            self.drag = DragState::MovePoint(pt.id);
-            data.move_point(pt.id, drag.current.pos);
+        match data.selected_point() {
+            Some(pt) if pt.is_on_curve() => {
+                self.drag = DragState::MovePoint(pt.id);
+                data.move_point(pt.id, drag.current.pos);
+            }
+            Some(pt) => {
+                self.drag = DragState::MoveControl(pt.id);
+                data.update_handle(pt.id, drag.current.pos, drag.current.mods.shift());
+            }
+            None => (),
         }
     }
 
     fn left_drag_changed(&mut self, drag: Drag, data: &mut EditSession) {
-        if let DragState::MovePoint(id) = self.drag {
-            let Drag { start, current, .. } = drag;
-            let point = if current.mods.shift() {
-                tools::axis_locked_point(current.pos, start.pos)
-            } else {
-                current.pos
-            };
-            data.move_point(id, point);
+        match self.drag {
+            DragState::MovePoint(id) => {
+                let Drag { start, current, .. } = drag;
+                let point = if current.mods.shift() {
+                    tools::axis_locked_point(current.pos, start.pos)
+                } else {
+                    current.pos
+                };
+                data.move_point(id, point);
+            }
+            DragState::MoveControl(id) => {
+                data.update_handle(id, drag.current.pos, drag.current.mods.shift())
+            }
+            DragState::None => (),
         }
     }
 

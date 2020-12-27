@@ -134,6 +134,11 @@ impl EditSession {
         self.selection = selection;
     }
 
+    pub fn update_handle(&mut self, point: PointId, new_pos: Point, axis_locked: bool) {
+        self.path_containing_pt_mut(point)
+            .update_handle(point, new_pos, axis_locked);
+    }
+
     pub fn maybe_convert_line_to_spline(&mut self, point: Point) {
         let closest = self.nearest_segment_for_point(point);
         match closest {
