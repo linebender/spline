@@ -153,6 +153,10 @@ impl Widget<EditSession> for Editor {
             }
             if HotKey::new(SysMods::Shift, "S").matches(k) {
                 self.save_contents(data);
+            } else if HotKey::new(SysMods::Shift, "+").matches(k) {
+                data.scale_up();
+            } else if HotKey::new(SysMods::Shift, "_").matches(k) {
+                data.scale_down();
             }
         }
 

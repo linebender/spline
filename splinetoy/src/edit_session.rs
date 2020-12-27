@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use druid::kurbo::BezPath;
+use druid::kurbo::{Affine, BezPath};
 use druid::{Data, Point, Vec2};
 
 use crate::path::{Path, PointId, SplinePoint};
@@ -222,8 +222,27 @@ impl EditSession {
         }
     }
 
+    pub fn scale_up(&mut self) {
+        let xform = Affine::scale(1.1);
+        for path in self.iter_paths_mut() {
+            path.apply_transform(xform);
+        }
+    }
+
+    pub fn scale_down(&mut self) {
+        let xform = Affine::scale(1.1f64.recip());
+        for path in self.iter_paths_mut() {
+            path.apply_transform(xform);
+        }
+    }
+
     pub fn to_json(&self) -> String {
-        let paths = self.paths.iter().map(Path::solver).chain(Some(self.path.solver())).collect::<Vec<_>>();
+        let paths = self
+            .paths
+            .iter()
+            .map(Path::solver)
+            .chain(Some(self.path.solver()))
+            .collect::<Vec<_>>();
         serde_json::to_string_pretty(&paths).unwrap_or_default()
     }
 

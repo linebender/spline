@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use druid::kurbo::{BezPath, Line, ParamCurve, ParamCurveNearest, Rect, Size};
+use druid::kurbo::{Affine, BezPath, Line, ParamCurve, ParamCurveNearest, Rect, Size};
 use druid::{Data, Point, Vec2};
 use spline::{Element, SplineSpec};
 
@@ -420,6 +420,15 @@ impl Path {
     pub fn nudge_all(&mut self, delta: Vec2) {
         for pt in self.points_mut() {
             pt.point += delta;
+        }
+        self.rebuild_solver();
+        self.after_change();
+    }
+
+    pub fn apply_transform(&mut self, transform: Affine) {
+        for pt in self.points_mut() {
+            let new_point = transform * pt.point;
+            pt.point = new_point;
         }
         self.rebuild_solver();
         self.after_change();
