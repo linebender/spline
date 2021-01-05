@@ -1,0 +1,17 @@
+[package]
+name = "hyper-bez-comparison"
+version = "0.1.0"
+authors = ["Colin Rofls <colin@cmyr.net>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+druid = "0.6.0"
+spline = { version = "0.3.0", path = ".."}
+
+wasm-bindgen = "0.2.67"
+js-sys = "0.3.44"
+web-sys = { version = "0.3", features = ["Window",  "EventTarget", "Location", "console"] }
+console_error_panic_hook = "0.1.6"
