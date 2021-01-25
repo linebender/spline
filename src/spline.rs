@@ -187,35 +187,40 @@ impl SplineSpec {
 
     /// Create initial segments.
     fn initial_segs(&self) -> Vec<Segment> {
-        let mut p0 = self.elements[0].endpoint();
-        (self.elements[1..])
-            .iter()
-            .map(|el| {
-                let p3 = el.endpoint();
-                let seg = if let &Element::SplineTo(Some(p1), Some(p2), _p3, _) = el {
-                    // Both points given, we can compute the final spline segment now.
-                    let v = p3 - p0;
-                    // This takes (0, 0) to p0 and (1, 0) to p3.
-                    let a = Affine::new([v.x, v.y, -v.y, v.x, p0.x, p0.y]);
-                    let a_inv = a.inverse();
-                    let (th0, bias0) = HyperBezier::params_for_v((a_inv * p1).to_vec2());
-                    let (th1, bias1) = HyperBezier::params_for_v(Point::new(1.0, 0.0) - a_inv * p2);
-                    // TODO: signs feel reversed here, but it all works out in the end.
-                    let theta_params = ThetaParams {
-                        th0: -th0,
-                        bias0,
-                        th1,
-                        bias1,
+        if self.elements.len() > 1 {
+            let mut p0 = self.elements[0].endpoint();
+            (self.elements[1..])
+                .iter()
+                .map(|el| {
+                    let p3 = el.endpoint();
+                    let seg = if let &Element::SplineTo(Some(p1), Some(p2), _p3, _) = el {
+                        // Both points given, we can compute the final spline segment now.
+                        let v = p3 - p0;
+                        // This takes (0, 0) to p0 and (1, 0) to p3.
+                        let a = Affine::new([v.x, v.y, -v.y, v.x, p0.x, p0.y]);
+                        let a_inv = a.inverse();
+                        let (th0, bias0) = HyperBezier::params_for_v((a_inv * p1).to_vec2());
+                        let (th1, bias1) =
+                            HyperBezier::params_for_v(Point::new(1.0, 0.0) - a_inv * p2);
+                        // TODO: signs feel reversed here, but it all works out in the end.
+                        let theta_params = ThetaParams {
+                            th0: -th0,
+                            bias0,
+                            th1,
+                            bias1,
+                        };
+                        let hb = HyperBezier::solve_for_theta(&theta_params);
+                        Segment::make(p0, Some(p1), Some(p2), p3, -th0, th1, hb)
+                    } else {
+                        Segment::line(p0, p3)
                     };
-                    let hb = HyperBezier::solve_for_theta(&theta_params);
-                    Segment::make(p0, Some(p1), Some(p2), p3, -th0, th1, hb)
-                } else {
-                    Segment::line(p0, p3)
-                };
-                p0 = p3;
-                seg
-            })
-            .collect()
+                    p0 = p3;
+                    seg
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
     }
 
     fn initial_ths(&self) -> Vec<f64> {
@@ -607,5 +612,16 @@ impl Segment {
                 path.push(a * *el);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_spline_doesnt_crash() {
+        let mut spec = SplineSpec::new();
+        spec.solve();
     }
 }
