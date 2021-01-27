@@ -160,6 +160,18 @@ impl SplineSpec {
         &mut self.elements
     }
 
+    /// Returns the current solution, if it is up-to-date.
+    ///
+    /// If it is not up-to-date, you need to call [`solve`](SplineSpec::solve)
+    /// first.
+    pub fn segments(&self) -> Option<&[Segment]> {
+        if self.dirty {
+            None
+        } else {
+            Some(&self.segments)
+        }
+    }
+
     /// Returns the solved spline based on the current elements.
     ///
     /// The returned [`Spline`] borrows data from `self`; if you need an
