@@ -1,7 +1,7 @@
 //! The math for the hyperbezier curve family.
 
 use kurbo::common as coeffs;
-use kurbo::{Affine, BezPath, Point, Vec2};
+use kurbo::{Affine, BezPath, PathEl, Point, Vec2};
 
 use crate::util;
 
@@ -121,32 +121,45 @@ impl HyperBezier {
         dt * result
     }
 
-    /// Render to beziers.
+    /// Render to a [`BezPath`].
+    pub fn render(&self, n: usize) -> BezPath {
+        self.render_elements(n).collect()
+    }
+
+    /// Render to bezier elements.
     ///
     /// The current algorithm just does a fixed subdivision based on arclength,
     /// but should be adaptive in several ways; more subdivision for twistier
     /// curves, and also more sophisticated parametrization (important as tension
     /// increases).
-    pub fn render(&self, n: usize) -> BezPath {
+    pub fn render_elements<'a>(&'a self, n: usize) -> impl Iterator<Item = PathEl> + 'a {
         let order = 24;
         let v = self.integrate(0.0, 1.0, order);
         let a = Affine::new([v.x, v.y, -v.y, v.x, 0.0, 0.0]).inverse();
         let step = 1.0 / (n as f64);
-        let mut result = BezPath::new();
         let mut last_p = Point::ZERO;
         let mut last_v = step * (1.0 / 3.0) * Vec2::from_angle(self.compute_theta(0.0));
-        result.move_to(last_p);
-        for i in 1..=n {
-            let t = (i as f64) * step;
-            let p = self.integrate(0.0, t, order).to_point();
-            let p1 = last_p + last_v;
-            let v = step * (1.0 / 3.0) * Vec2::from_angle(self.compute_theta(t));
-            let p2 = p - v;
-            result.curve_to(a * p1, a * p2, a * p);
-            last_v = v;
-            last_p = p;
-        }
-        result
+        let mut i = 0;
+        let mut first = Some(PathEl::MoveTo(last_p));
+        std::iter::from_fn(move || {
+            if let Some(first) = first.take() {
+                return Some(first);
+            }
+            i += 1;
+            if i <= n {
+                let t = (i as f64) * step;
+                let p = self.integrate(0.0, t, order).to_point();
+                let p1 = last_p + last_v;
+                let v = step * (1.0 / 3.0) * Vec2::from_angle(self.compute_theta(t));
+                let p2 = p - v;
+                let next = PathEl::CurveTo(a * p1, a * p2, a * p);
+                last_v = v;
+                last_p = p;
+                Some(next)
+            } else {
+                None
+            }
+        })
     }
 
     /// Solve for curve params, given theta params.

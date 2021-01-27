@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use kurbo::{Affine, BezPath, Point, Vec2};
+use kurbo::{Affine, BezPath, PathEl, Point, Vec2};
 #[cfg(feature = "serde")]
 use serde_::{Deserialize, Serialize};
 
@@ -612,18 +612,28 @@ impl Segment {
     /// This does not include the initial moveto, so the caller needs to
     /// supply that separately.
     pub fn render(&self, path: &mut BezPath) {
-        if self.is_line() {
-            path.line_to(self.p3);
+        path.extend(self.render_elements())
+    }
+
+    /// Returns an iterator over the bezier elements that render this segment.
+    pub fn render_elements<'a>(&'_ self) -> impl Iterator<Item = PathEl> + '_ {
+        // we need to do some gymnastics to enesure we return the same concrete type in
+        // both cases:
+        let (line_part, spline_part) = if self.is_line() {
+            (Some(PathEl::LineTo(self.p3)), None)
         } else {
             let p = self.p0;
             let d = self.p3 - p;
             let a = Affine::new([d.x, d.y, -d.y, d.x, p.x, p.y]);
-            // TODO: smarter subdivision plan.
-            let curve = self.hb.render(64);
-            for el in curve.elements().iter().skip(1) {
-                path.push(a * *el);
-            }
-        }
+            (
+                None,
+                Some(self.hb.render_elements(64).skip(1).map(move |el| a * el)),
+            )
+        };
+
+        line_part
+            .into_iter()
+            .chain(spline_part.into_iter().flatten())
     }
 }
 
@@ -635,5 +645,16 @@ mod tests {
     fn empty_spline_doesnt_crash() {
         let mut spec = SplineSpec::new();
         spec.solve();
+    }
+
+    #[test]
+    fn render_elements_count() {
+        let mut spec = SplineSpec::new();
+        spec.move_to(Point::new(0., 0.));
+        spec.spline_to(Some(Point::new(20., 40.)), None, Point::new(100., 0.), true);
+        let spline = spec.solve();
+        assert_eq!(spline.segments().len(), 1);
+        let elements_count = spline.segments().first().unwrap().render_elements().count();
+        assert_eq!(elements_count, 64);
     }
 }
