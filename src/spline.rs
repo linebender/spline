@@ -627,7 +627,12 @@ impl Segment {
             let a = Affine::new([d.x, d.y, -d.y, d.x, p.x, p.y]);
             (
                 None,
-                Some(self.hb.render_elements(64).skip(1).map(move |el| a * el)),
+                Some(
+                    self.hb
+                        .render_elements(self.hb.render_subdivisions())
+                        .skip(1)
+                        .map(move |el| a * el),
+                ),
             )
         };
 
@@ -655,6 +660,6 @@ mod tests {
         let spline = spec.solve();
         assert_eq!(spline.segments().len(), 1);
         let elements_count = spline.segments().first().unwrap().render_elements().count();
-        assert_eq!(elements_count, 64);
+        assert!(elements_count < 64);
     }
 }
