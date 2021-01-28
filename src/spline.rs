@@ -660,6 +660,6 @@ mod tests {
         let spline = spec.solve();
         assert_eq!(spline.segments().len(), 1);
         let elements_count = spline.segments().first().unwrap().render_elements().count();
-        assert_eq!(elements_count, 64);
+        assert!(elements_count < 64);
     }
 }
