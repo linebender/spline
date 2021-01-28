@@ -137,8 +137,19 @@ impl HyperBezier {
         let v = self.integrate(0.0, 1.0, order);
         let a = Affine::new([v.x, v.y, -v.y, v.x, 0.0, 0.0]).inverse();
         let step = 1.0 / (n as f64);
+        fn calc_t(bias: f64) -> f64 {
+            if bias >= 1.0 {
+                (2.0 - bias).sqrt() * (1.0 / 3.0)
+            } else {
+                // Possibly this should increase for low tension curves, but that's not
+                // obvious.
+                1.0 / 3.0
+            }
+        }
+        let t1 = calc_t(self.bias0);
+        let t2 = 1.0 - calc_t(self.bias1);
         let mut last_p = Point::ZERO;
-        let mut last_v = step * (1.0 / 3.0) * Vec2::from_angle(self.compute_theta(0.0));
+        let mut last_v = step * t1 * Vec2::from_angle(self.compute_theta(0.0));
         let mut i = 0;
         let mut first = Some(PathEl::MoveTo(last_p));
         std::iter::from_fn(move || {
@@ -147,10 +158,13 @@ impl HyperBezier {
             }
             i += 1;
             if i <= n {
-                let t = (i as f64) * step;
+                let u = (i as f64) * step;
+                let um = 1.0 - u;
+                let t = 3.0 * u * um * (um * t1 + u * t2) + u.powi(3);
                 let p = self.integrate(0.0, t, order).to_point();
                 let p1 = last_p + last_v;
-                let v = step * (1.0 / 3.0) * Vec2::from_angle(self.compute_theta(t));
+                let dt = um * um * t1 + 2.0 * u * um * (t2 - t1) + u * u * (1.0 - t2);
+                let v = step * dt * Vec2::from_angle(self.compute_theta(t));
                 let p2 = p - v;
                 let next = PathEl::CurveTo(a * p1, a * p2, a * p);
                 last_v = v;
@@ -160,6 +174,13 @@ impl HyperBezier {
                 None
             }
         })
+    }
+
+    /// Suggest a number of subdivisions for rendering.
+    ///
+    /// This is a bit of a hacky heuristic.
+    pub fn render_subdivisions(&self) -> usize {
+        2 + (self.k0.abs() + self.k1.abs()).floor() as usize
     }
 
     /// Solve for curve params, given theta params.
@@ -273,7 +294,7 @@ fn integrate_basis(bias: f64, s: f64) -> f64 {
     } else {
         let a = (bias - 1.0).min(MAX_A);
         let norm = 1.0 / (1.0 - a) + (1.0 - a).ln() - 1.0;
-        (1.0 / (1.0 - a * s) + (1.0 - a * s).ln()) / norm
+        (1.0 / (1.0 - a * s) + (1.0 - a * s).ln() - 1.0) / norm
     }
 }
 
