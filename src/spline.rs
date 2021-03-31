@@ -141,6 +141,10 @@ impl SplineSpec {
         self.dirty = true;
     }
 
+    pub fn is_closed(&self) -> bool {
+        self.is_closed
+    }
+
     pub fn elements(&self) -> &[Element] {
         &self.elements
     }
@@ -661,5 +665,13 @@ mod tests {
         assert_eq!(spline.segments().len(), 1);
         let elements_count = spline.segments().first().unwrap().render_elements().count();
         assert!(elements_count < 64);
+    }
+
+    /// Return a [`BezPath`] representing this segment.
+    pub fn to_bezier(&self) -> BezPath {
+        let mut path = BezPath::new();
+        path.move_to(self.p0);
+        self.render(&mut path);
+        path
     }
 }
