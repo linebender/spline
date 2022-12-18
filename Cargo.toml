@@ -11,7 +11,7 @@ readme = "README.md"
 categories = ["graphics"]
 
 [dependencies]
-kurbo = "0.8"
+kurbo = "0.9"
 serde_ = { version = "1.0.117", package="serde", features = ["derive"], optional = true }
 
 [dev-dependencies]
