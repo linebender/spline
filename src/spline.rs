@@ -183,8 +183,8 @@ impl SplineSpec {
             self.dths = vec![0.0; self.ths.len()];
             self.update_segs();
             for i in 0..10 {
-                let err = self.iterate(i);
-                eprintln!("err = {}", err);
+                let _err = self.iterate(i);
+                //eprintln!("err = {}", err);
                 self.adjust_tensions(i);
                 self.update_segs();
             }
