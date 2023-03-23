@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Hyperbezier</title>
+        <style>
+            html,
+            body,
+            canvas {
+                margin: 0px;
+                padding: 0px;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+            }
+        </style>
+        <script type="module" src="./index.js" type="application/javascript"></script>
+    </head>
+    <body>
+        <noscript>This page contains WebAssembly and JavaScript content, please enable JavaScript in your
+            browser.</noscript>
+        <canvas id="canvas"></canvas>
+        <div id="info">
+            <p>This is a simple toy or exploring the UX of the "hyperbezier" spline.</p>
+            <ul>
+                <li>Toggle between pen and selection tools with p/v</li>
+                <li>'delete' removes the last added point</li>
+                <li>'auto' points are off-curve points ('control points' or 'handles') that are positioned and updated automatically to maintain constant smoothness through the curve.</li>
+                <li>Auto points are drawn with an '×'. Dragging an auto point (or double-clicking it) converts it to a normal point.</li>
+                <li>When using the pen tool, click (without modifiers) adds a line from the previous point to the click location.</li>
+                <li>Alt+click draws a smooth curve to the click location.</li>
+            </ul>
+        </div>
+    </body>
+</html>
