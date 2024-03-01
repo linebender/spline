@@ -10,11 +10,12 @@
 //! [Spiro]: https://github.com/raphlinus/spiro
 //! [research spline]: https://github.com/raphlinus/spline-research
 
-mod hyperbezier;
+mod hyperbezier_old;
+pub mod hyperbezier;
 mod simple_spline;
 mod spline;
 mod util;
 
 pub use crate::spline::{Element, Segment, Spline, SplineSpec};
-pub use hyperbezier::{HyperBezier, ThetaParams};
+pub use hyperbezier_old::{HyperBezier, ThetaParams};
 pub use simple_spline::SimpleSpline;
