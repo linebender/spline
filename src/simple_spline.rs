@@ -4,7 +4,7 @@ use std::f64::consts::PI;
 
 use kurbo::{Affine, BezPath, Point, Vec2};
 
-use crate::hyperbezier::{HyperBezier, HyperBezierResult, ThetaParams};
+use crate::hyperbezier_old::{HyperBezier, HyperBezierResult, ThetaParams};
 use crate::util;
 
 pub struct SimpleSpline {

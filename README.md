@@ -4,21 +4,31 @@ This crate implements a new spline designed and optimized for interactive design
 
 The work builds on previous iterations, notably the [Spiro] spline, and then another [research spline].
 
+## Status: in transition
+
+This crate is in transition from supporting the first draft of hyperbeziers to the second. The first draft had a reasonably clean mapping from Bézier control points to curve parameters (something still in progress for the second), but a number of shortcomings:
+
+* It was not closed under subdivision
+
+* It was not capable of superellipse-like shapes
+
+* The shape when high tension on one side and low tension on the other was lumpy, with an undesirable curvature minimum
+
+The new hyperbezier addresses all these problems.
+
 ## Hyperbeziers
 
-The major innovation of this spline is the "hyperbezier" curve family. Like cubic Béziers and the Spiro curve, it is a four-parameter curve family. In fact, it's closely based on Spiro and there is significant overlap of the parameter space, including Euler spirals.
+The major innovation of this spline is the "hyperbezier" curve family. Like cubic Béziers and the Spiro curve, it is a four-parameter curve family. In fact, it's based on Spiro and there is significant overlap of the parameter space, including Euler spirals.
 
 There is a significant difference, however. In the Spiro curve family, curvature is bounded, so it is not capable of cusp-like behavior. Rather, when "pushed," Spiro tends to wiggly, Shmoo-like shapes. Béziers are of course capable of high curvature regions, as are elastica when placed under very high tension.
 
-A good way to parametrize the hyperbezier is by tangent angle and "tension," which correlates strongly with curvature at the endpoint. At low tension, the hyperbezier is equivalent to the Spiro curve. A natural tension value produces the Euler spiral (curvature is a linear function of arclength). But for higher tension values, a different function takes over, which approaches a cusp at the endpoint as tension increases.
+A good way to parametrize the hyperbezier is by tangent angle and "tension," which correlates strongly with curvature at the endpoint. At low tension, the hyperbezier has similar behavior to the Spiro curve. A natural tension value produces the Euler spiral (curvature is a linear function of arclength). But for higher tension values, curvature rises more sharply near the endpoints. In addition, the hyperbezier has a region of parameter space which produces curves resembling hyperbolas (also usable as a quadrant of a superellipse-like shape).
 
-Unlike Béziers, the cusp happens *only* at the endpoint. Curvature maxima in the interior of a curve are ugly. With the hyperbezier, if the designer wants a sharp curvature maximum, simply place an on-curve point there.
-
-A particular strength of the hyperbezier is smooth (G2-continuous) transitions from straight to curved sections. The hyperbezier is capable (unlike a cubic Bézier) of an S-shaped curve with zero curvature at both ends. It's also capable of a wide range of Euler spiral like behavior where one end has zero curvature and the other is a nice rounded shape (in the general case a designer would use at least two Béziers to create this effect).
-
-The name "hyperbezier" clearly references its roots in the [cubic Bézier][A Primer on Bézier Curves], and the "hyper" part is a reference to the fact that the Euler spiral, an important section of its parameter space, is an instance of the [Hypergeometric function].
+The name "hyperbezier" references its roots in the [cubic Bézier][A Primer on Bézier Curves], and the "hyper" part is a reference to the fact that the Euler spiral, an important section of its parameter space, is an instance of the [Hypergeometric function]. Additionally, the "hyper" can be seen as a reference to hyperbola-like shapes, which it approximates and a cubic Bézier cannot.
 
 ## Focus on UX
+
+Status: this section may be revised, as the new hyperbezier has not yet been hooked up to an interactive example.
 
 A persistent challenge with spline-based curve design is getting the UX right. Bézier curves are not easy to master, but the [pen tool] has become highly refined over time, and is an extremely productive interface for designers. A major motivation for this work is to retain the good parts of the Bézier UX.
 

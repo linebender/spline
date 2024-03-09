@@ -6,7 +6,7 @@ use kurbo::{Affine, BezPath, PathEl, Point, Vec2};
 #[cfg(feature = "serde")]
 use serde_::{Deserialize, Serialize};
 
-use crate::hyperbezier::{self, HyperBezier, ThetaParams};
+use crate::hyperbezier_old::{self, HyperBezier, ThetaParams};
 use crate::simple_spline;
 use crate::util;
 
@@ -406,7 +406,7 @@ impl SplineSpec {
                 let prev_seg = &self.segments[self.prev_ix(i) - 1];
                 let seg = &self.segments[i - 1];
                 let this_ch = seg.chord().hypot();
-                let bias = hyperbezier::compute_k_inv(prev_seg.k1 * this_ch / (seg.hb.k0 * seg.ch));
+                let bias = hyperbezier_old::compute_k_inv(prev_seg.k1 * this_ch / (seg.hb.k0 * seg.ch));
                 let bias = bias.max(MIN_BIAS);
                 let bias = seg.hb.bias0 + scale * (bias - seg.hb.bias0);
                 self.segments[i - 1].hb.bias0 = bias;
@@ -417,7 +417,7 @@ impl SplineSpec {
                 let next_seg = &self.segments[self.next_ix(i) - 1];
                 let seg = &self.segments[i - 1];
                 let this_ch = seg.chord().hypot();
-                let bias = hyperbezier::compute_k_inv(next_seg.k0 * this_ch / (seg.hb.k1 * seg.ch));
+                let bias = hyperbezier_old::compute_k_inv(next_seg.k0 * this_ch / (seg.hb.k1 * seg.ch));
                 let bias = bias.max(MIN_BIAS);
                 let bias = seg.hb.bias1 + scale * (bias - seg.hb.bias1);
                 self.segments[i - 1].hb.bias1 = bias;
