@@ -1,0 +1,70 @@
+<html>
+    <style>
+        svg .handle {
+            pointer-events: all;
+        }
+        svg .handle:hover {
+            r: 6;
+        }
+        svg .quad {
+            stroke-width: 1px;
+            stroke: #888;
+        }
+        svg .hull {
+            stroke: #c44;
+        }
+        svg .polyline {
+        }
+        svg text {
+            font-family: sans-serif;
+        }
+        svg .button {
+            fill: #aad;
+            stroke: #44f;
+        }
+        svg .button:hover {
+            fill: #bbf;
+        }
+        svg text {
+            pointer-events: none;
+        }
+        svg #grid line {
+            /* stroke: #ccc; */
+        }
+        svg .band {
+            fill: #fda;
+            opacity: 0.3;
+        }
+        img {
+          margin: auto;
+          margin: auto;
+          display: block;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, max-content);
+            gap: 10px;
+        }
+        .controls input {
+            width: 200px;
+        }
+    </style>
+    <svg id="s" width="700" height="500">
+        <g id="grid"></g>
+    </svg>
+    <!--
+    <div class='controls'>
+        <div><input type="range" min="-5" max="5" value="0" step="0.02" id="a"></div>
+        <div id="aval"></div>
+        <div><input type="range" min="-5" max="5" value="1" step="0.02" id="b"></div>
+        <div id="bval"></div>
+        <div><input type="range" min="0" max="1" value="1" step="0.02" id="c"></div>
+        <div id="cval"></div>
+        <div><input type="range" min="0" max="1" value="1" step="0.02" id="d"></div>
+        <div id="dval"></div>
+        <div><input type="range" min="0" max="1" value="1" step="0.02" id="e"></div>
+        <div id="eval"></div>
+    </div>
+    -->
+    <script src="hyperbez.js"></script>
+</html>
